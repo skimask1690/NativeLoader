@@ -11,7 +11,6 @@ This project demonstrates a **minimal Windows loader** that dynamically resolves
 
 ## 🔹 Features
 
-### WinAPI Loader
 - Manual module resolution through the PEB.
 - Manual export resolution from PE export tables.
 - Dynamic `LoadLibrary` / `GetProcAddress` usage without static imports.
@@ -50,6 +49,7 @@ This tool is provided for educational and research purposes only. The author is 
 ## 📜 License
 
 This project is released under the [MIT License](LICENSE).
+
 
 
 
