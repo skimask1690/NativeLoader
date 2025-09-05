@@ -23,12 +23,12 @@ Requires `gcc` targeting 64-bit Windows
 
 Build the demo:
 ```bash
-x86_64-w64-mingw32-gcc -s calc.c -nostdlib -nostartfiles -ffreestanding -fno-ident -Wl,-subsystem,windows -e _start -Os -fPIC -fno-asynchronous-unwind-tables -T linker.ld -o temp_calc.exe
+x86_64-w64-mingw32-gcc -s msgbox.c -nostdlib -nostartfiles -ffreestanding -fno-ident -Wl,-subsystem,windows -e _start -Os -fPIC -fno-asynchronous-unwind-tables -T linker.ld -o msgbox.exe
 ```
 
 Extract shellcode from .text:
 ```bash
-objcopy -O binary --only-section=.text temp_calc.exe shellcode.bin
+objcopy -O binary --only-section=.text msgbox.exe shellcode.bin
 ```
 
 Build the shellcode loader:
