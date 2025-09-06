@@ -6,32 +6,37 @@
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {
+    // Check for input file argument
     if (argc < 2) {
-        printf("[*] Usage: %s <shellcode.bin>\n", argv[0]);
+        printf("Usage: %s <shellcode.bin>\n", argv[0]);
         return 1;
     }
-    
-    // Open shellcode file
-    FILE *shellcodeFile = fopen(argv[1], "rb");
+
+    // Open the shellcode file
+    FILE *f = fopen(argv[1], "rb");
+    if (!f) {
+        printf("Error: Cannot open file '%s'\n", argv[1]);
+        return 1;
+    }
 
     // Get file size
-    fseek(shellcodeFile, 0, SEEK_END);
-    long shellcodeSize = ftell(shellcodeFile);
-    fseek(shellcodeFile, 0, SEEK_SET);
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
 
-    // Allocate memory
-    void *execMemory = VirtualAlloc(NULL, shellcodeSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    // Allocate memory for shellcode
+    void *mem = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-    // Load shellcode into memory
-    fread(execMemory, 1, shellcodeSize, shellcodeFile);
-    fclose(shellcodeFile);
+    // Read shellcode into memory
+    fread(mem, 1, size, f);
+    fclose(f);
 
     // Make memory executable
-    DWORD oldProtect;
-    VirtualProtect(execMemory, shellcodeSize, PAGE_EXECUTE_READ, &oldProtect);
+    DWORD old;
+    VirtualProtect(mem, size, PAGE_EXECUTE_READ, &old);
 
-    // Run shellcode
-    ((void(*)())execMemory)();
+    // Execute shellcode
+    ((void(*)())mem)();
 
     return 0;
 }
