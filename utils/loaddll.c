@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
 
     HMODULE h = LoadLibraryA(argv[1]);  // Executes DLL_PROCESS_ATTACH
     if (!h) {
-        printf("[-] Failed to load DLL: %s\n", argv[1]);
+        printf("[-] Error: Failed to load DLL '%s'\n", argv[1]);
         return 1;
     }
 
