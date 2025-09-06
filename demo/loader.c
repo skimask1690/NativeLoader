@@ -8,14 +8,14 @@
 int main(int argc, char *argv[]) {
     // Check for input file argument
     if (argc < 2) {
-        printf("Usage: %s <shellcode.bin>\n", argv[0]);
+        printf("[*] Usage: %s <shellcode.bin>\n", argv[0]);
         return 1;
     }
 
     // Open the shellcode file
     FILE *f = fopen(argv[1], "rb");
     if (!f) {
-        fprintf(stderr, "Error: Cannot open file '%s'\n", argv[1]);
+        fprintf(stderr, "[-] Error: Cannot open file '%s'\n", argv[1]);
         return 1;
     }
 
