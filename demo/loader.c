@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
     // Open the shellcode file
     FILE *f = fopen(argv[1], "rb");
     if (!f) {
-        printf("Error: Cannot open file '%s'\n", argv[1]);
+        fprintf(stderr, "Error: Cannot open file '%s'\n", argv[1]);
         return 1;
     }
 
