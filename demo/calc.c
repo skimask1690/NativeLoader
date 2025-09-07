@@ -33,4 +33,3 @@ void _start(void) {
 
     pCreateProcessW(path, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 }
-
