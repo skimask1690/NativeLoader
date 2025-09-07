@@ -1,4 +1,3 @@
-#define WINAPI_LOADER_IMPLEMENTATION
 #include "winapi_loader.h"
 
 // -------------------- Function pointer types --------------------
