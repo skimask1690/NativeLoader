@@ -155,7 +155,7 @@ static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
     return hModule;
 }
 
-// -------------------- myLoadLibraryA (-DLOADLIBA) --------------------
+// -------------------- myLoadLibraryA --------------------
 static void AsciiToWideChar(const char* ascii, UNICODE_STRING* ustr, wchar_t* buf, SIZE_T bufCount) {
     SIZE_T i = 0;
     while (ascii[i] && i < bufCount - 1) {
@@ -176,7 +176,7 @@ static HMODULE myLoadLibraryA(const char* dllNameA) {
     return _myLdrLoadDll(&ustr);
 }
 
-// -------------------- myLoadLibraryW (-DLOADLIBW) --------------------
+// -------------------- myLoadLibraryW --------------------
 static void InitUnicodeString(UNICODE_STRING* ustr, const wchar_t* wstr) {
     size_t len = 0;
     while (wstr[len]) len++;
