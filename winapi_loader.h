@@ -67,25 +67,13 @@ typedef struct _PEB {
     PEB_LDR_DATA* Ldr;
 } PEB;
 
-// -------------------- Function declarations --------------------
-HMODULE myGetModuleHandleA(const char* name);
-FARPROC myGetProcAddress(HMODULE hMod, const char* fnName);
-
-#ifdef LOADLIBW
-HMODULE myLoadLibraryW(const wchar_t* dllNameW);
-#endif
-
-#ifdef LOADLIBA
-HMODULE myLoadLibraryA(const char* dllNameA);
-#endif
-
 // ================================================================
 // IMPLEMENTATION SECTION
 // ================================================================
 #ifdef WINAPI_LOADER_IMPLEMENTATION
 
 // -------------------- myGetModuleHandleA --------------------
-HMODULE myGetModuleHandleA(const char* name) {
+static HMODULE myGetModuleHandleA(const char* name) {
     PEB* peb = (PEB*)__readgsqword(0x60);
     LIST_ENTRY* head = &peb->Ldr->InMemoryOrderModuleList;
 
@@ -102,7 +90,7 @@ HMODULE myGetModuleHandleA(const char* name) {
 }
 
 // -------------------- myGetProcAddress --------------------
-FARPROC myGetProcAddress(HMODULE hMod, const char* fnName) {
+static FARPROC myGetProcAddress(HMODULE hMod, const char* fnName) {
     BYTE* base = (BYTE*)hMod;
     IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)base;
     IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(base + dos->e_lfanew);
@@ -191,7 +179,7 @@ static void AsciiToWideChar(const char* ascii, UNICODE_STRING* ustr, wchar_t* bu
     ustr->Buffer = buf;
 }
 
-HMODULE myLoadLibraryA(const char* dllNameA) {
+static HMODULE myLoadLibraryA(const char* dllNameA) {
     wchar_t buf[17]; // aligned stack
     UNICODE_STRING ustr;
     AsciiToWideChar(dllNameA, &ustr, buf, sizeof(buf)/sizeof(buf[0]));
@@ -210,7 +198,7 @@ static void InitUnicodeString(UNICODE_STRING* ustr, const wchar_t* wstr) {
     ustr->MaximumLength = (USHORT)((len + 1) * sizeof(WCHAR));
 }
 
-HMODULE myLoadLibraryW(const wchar_t* dllNameW) {
+static HMODULE myLoadLibraryW(const wchar_t* dllNameW) {
     UNICODE_STRING ustr;
     InitUnicodeString(&ustr, dllNameW);
     return _myLdrLoadDll(&ustr);
