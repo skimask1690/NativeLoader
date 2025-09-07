@@ -113,8 +113,6 @@ static FARPROC myGetProcAddress(HMODULE hMod, const char* fnName) {
 }
 
 // -------------------- myLoadLibrary helper --------------------
-#if defined(LOADLIBA) || defined(LOADLIBW)
-
 typedef NTSTATUS(NTAPI* LdrLoadDll_t)(
     PWSTR PathToFile,
     ULONG Flags,
@@ -162,10 +160,7 @@ static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
     return hModule;
 }
 
-#endif // LOADLIBA || LOADLIBW
-
 // -------------------- myLoadLibraryA (-DLOADLIBA) --------------------
-#ifdef LOADLIBA
 static void AsciiToWideChar(const char* ascii, UNICODE_STRING* ustr, wchar_t* buf, SIZE_T bufCount) {
     SIZE_T i = 0;
     while (ascii[i] && i < bufCount - 1) {
@@ -185,10 +180,8 @@ static HMODULE myLoadLibraryA(const char* dllNameA) {
     AsciiToWideChar(dllNameA, &ustr, buf, sizeof(buf)/sizeof(buf[0]));
     return _myLdrLoadDll(&ustr);
 }
-#endif
 
 // -------------------- myLoadLibraryW (-DLOADLIBW) --------------------
-#ifdef LOADLIBW
 static void InitUnicodeString(UNICODE_STRING* ustr, const wchar_t* wstr) {
     size_t len = 0;
     while (wstr[len]) len++;
@@ -203,7 +196,6 @@ static HMODULE myLoadLibraryW(const wchar_t* dllNameW) {
     InitUnicodeString(&ustr, dllNameW);
     return _myLdrLoadDll(&ustr);
 }
-#endif
 
 #endif // WINAPI_LOADER_IMPLEMENTATION
 
