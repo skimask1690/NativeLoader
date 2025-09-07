@@ -67,11 +67,6 @@ typedef struct _PEB {
     PEB_LDR_DATA* Ldr;
 } PEB;
 
-// ================================================================
-// IMPLEMENTATION SECTION
-// ================================================================
-#ifdef WINAPI_LOADER_IMPLEMENTATION
-
 // -------------------- myGetModuleHandleA --------------------
 static HMODULE myGetModuleHandleA(const char* name) {
     PEB* peb = (PEB*)__readgsqword(0x60);
@@ -196,7 +191,5 @@ static HMODULE myLoadLibraryW(const wchar_t* dllNameW) {
     InitUnicodeString(&ustr, dllNameW);
     return _myLdrLoadDll(&ustr);
 }
-
-#endif // WINAPI_LOADER_IMPLEMENTATION
 
 #endif // WINAPI_LOADER_H
