@@ -76,8 +76,7 @@ for i in range(iterations):
     combined_array = bytes_to_c_array(b"".join(xor_c_strings))
     key_array = bytes_to_c_array(key)
 
-    c_code = f'''#define WINAPI_LOADER_IMPLEMENTATION
-#include "winapi_loader.h"
+    c_code = f'''#include "winapi_loader.h"
 
 typedef NTSTATUS (NTAPI *NtAllocateVirtualMemory_t)(
     HANDLE ProcessHandle,
@@ -185,4 +184,3 @@ void _start() {{
 
 if iterations > 1:
     print(f"[+] Shellcode generated: {output_bin}")
-
