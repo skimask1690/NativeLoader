@@ -1,4 +1,3 @@
-#define WINAPI_LOADER_IMPLEMENTATION
 #include "winapi_loader.h"
 
 // -------------------- Function pointer types --------------------
@@ -34,3 +33,4 @@ void _start(void) {
 
     pCreateProcessW(path, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 }
+
