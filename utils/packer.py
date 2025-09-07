@@ -5,11 +5,12 @@ import random
 
 if len(sys.argv) < 3:
     script_name = os.path.basename(sys.argv[0])
-    print(f"Usage: {script_name} <shellcode.bin> <output.exe> [-xor] [-l <key_length>] [-k <key>]")
+    print(f"Usage: {script_name} <shellcode.bin> <output.exe> [-dll] [-xor] [-l <key_length>] [-k <key>]")
     sys.exit(1)
 
 bin_file = sys.argv[1]
 output_exe = sys.argv[2]
+use_dll = "-dll" in sys.argv
 use_xor = "-xor" in sys.argv or "-i" in sys.argv or "-l" in sys.argv or "-k" in sys.argv
 
 key_length = 1
@@ -165,13 +166,18 @@ compile_cmd = [
 
 if use_xor:
     compile_cmd.append("-DXOR")
-
+elif use_dll:
+    compile_cmd.append("-shared")
 proc = subprocess.run(compile_cmd, input=c_code.encode(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 if proc.returncode != 0:
     print(proc.stderr.decode())
     sys.exit(1)
 
-if use_xor:
+if use_xor and use_dll:
+    print(f"[+] DLL generated: {output_exe} (XOR key: {key_array})")
+elif use_dll:
+    print(f"[+] DLL generated: {output_exe}")
+elif use_xor:
     print(f"[+] Executable generated: {output_exe} (XOR key: {key_array})")
 else:
     print(f"[+] Executable generated: {output_exe}")
