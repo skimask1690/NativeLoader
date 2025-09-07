@@ -3,7 +3,7 @@ import sys
 import subprocess
 
 if len(sys.argv) < 3:
-    print(f"Usage: {os.path.basename(sys.argv[0])} <source.c> <output.bin> [-exe] [-dll] [-loadlibA] [-loadlibW] [-xor]")
+    print(f"Usage: {os.path.basename(sys.argv[0])} <source.c> <output.bin> [-exe] [-dll] [-xor]")
     sys.exit(1)
 
 args = [arg.lower() for arg in sys.argv]
@@ -12,8 +12,6 @@ input_c = sys.argv[1]
 output_bin = sys.argv[2]
 use_exe = "-exe" in args
 use_dll = "-dll" in args
-use_liba = "-loadliba" in args
-use_libw = "-loadlibw" in args
 use_xor = "-xor" in args
 
 output_file = output_bin if use_exe or use_dll else "temp_compile.exe"
@@ -33,10 +31,6 @@ if use_dll:
 if not use_exe and not use_dll:
     compile_cmd.extend(["-T", "linker.ld"])
 
-if use_liba:
-    compile_cmd.append("-DLOADLIBA")
-if use_libw:
-    compile_cmd.append("-DLOADLIBW")
 if use_xor:
     compile_cmd.append("-DXOR")
 
