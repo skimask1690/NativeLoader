@@ -166,7 +166,7 @@ compile_cmd = [
 
 if use_xor:
     compile_cmd.append("-DXOR")
-elif use_dll:
+if use_dll:
     compile_cmd.append("-shared")
 proc = subprocess.run(compile_cmd, input=c_code.encode(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 if proc.returncode != 0:
