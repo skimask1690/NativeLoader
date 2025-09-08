@@ -7,7 +7,6 @@
 // Type for DLL entry point
 typedef BOOL(WINAPI *DllEntryProc)(HINSTANCE, DWORD, LPVOID);
 
-// Convert section characteristics to memory protection flags
 DWORD GetProtection(DWORD characteristics) {
     if (characteristics & IMAGE_SCN_MEM_EXECUTE)
         return (characteristics & IMAGE_SCN_MEM_WRITE) ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_READ;
@@ -16,7 +15,6 @@ DWORD GetProtection(DWORD characteristics) {
     return PAGE_NOACCESS;
 }
 
-// Reflectively load a DLL from memory
 HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
     // Parse headers
     IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)dllBuffer;
@@ -104,7 +102,6 @@ HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
     return (HMODULE)imageBase;
 }
 
-// Read a DLL file into memory
 BYTE* ReadDLL(const char* path, SIZE_T* outSize) {
     FILE* f = fopen(path, "rb");
     if (!f) return NULL;
