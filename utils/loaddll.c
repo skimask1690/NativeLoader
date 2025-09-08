@@ -124,19 +124,19 @@ BYTE* ReadDLL(const char* path, SIZE_T* outSize) {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        printf("Usage: %s <input.dll>\n", argv[0]);
+        printf("[*] Usage: %s <input.dll>\n", argv[0]);
         return 1;
     }
 
     SIZE_T dllSize;
     BYTE* dllBuffer = ReadDLL(argv[1], &dllSize);
     if (!dllBuffer) {
-        printf("Failed to read DLL '%s'\n", argv[1]);
+        printf("[-] Failed to read DLL '%s'\n", argv[1]);
         return 1;
     }
 
     if (!ReflectiveLoadDLL(dllBuffer))
-        printf("Failed to load DLL '%s'\n", argv[1]);
+        printf("[-] Failed to load DLL '%s'\n", argv[1]);
 
     free(dllBuffer);
     return 0;
