@@ -122,7 +122,6 @@ BYTE* ReadDLL(const char* path, SIZE_T* outSize) {
     return buffer;
 }
 
-// Minimal main function for single DLL
 int main(int argc, char** argv) {
     if (argc < 2) {
         printf("Usage: %s <input.dll>\n", argv[0]);
@@ -142,3 +141,4 @@ int main(int argc, char** argv) {
     free(dllBuffer);
     return 0;
 }
+
