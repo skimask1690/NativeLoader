@@ -1,8 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // Type for DLL entry point
 typedef BOOL(WINAPI *DllEntryProc)(HINSTANCE, DWORD, LPVOID);
