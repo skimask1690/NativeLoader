@@ -1,11 +1,13 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-// DLL entry point type
+// Type for DLL entry point
 typedef BOOL(WINAPI *DllEntryProc)(HINSTANCE, DWORD, LPVOID);
 
-// Determine memory protection from section characteristics
+// Convert section characteristics to memory protection flags
 DWORD GetProtection(DWORD characteristics) {
     if (characteristics & IMAGE_SCN_MEM_EXECUTE)
         return (characteristics & IMAGE_SCN_MEM_WRITE) ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_READ;
@@ -14,10 +16,11 @@ DWORD GetProtection(DWORD characteristics) {
     return PAGE_NOACCESS;
 }
 
-// Reflectively load DLL from memory
+// Reflectively load a DLL from memory
 HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
+    // Parse headers
     IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)dllBuffer;
-    IMAGE_NT_HEADERS* ntHeaders = (IMAGE_NT_HEADERS*)(dllBuffer + dosHeader->e_lfanew);
+    IMAGE_NT_HEADERS64* ntHeaders = (IMAGE_NT_HEADERS64*)(dllBuffer + dosHeader->e_lfanew);
 
     // Allocate memory for DLL image
     BYTE* imageBase = (BYTE*)VirtualAlloc(
@@ -28,32 +31,21 @@ HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
     );
     if (!imageBase)
         imageBase = (BYTE*)VirtualAlloc(NULL, ntHeaders->OptionalHeader.SizeOfImage, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    if (!imageBase) return NULL;
 
-    // Copy headers and sections
+    // Copy headers
     memcpy(imageBase, dllBuffer, ntHeaders->OptionalHeader.SizeOfHeaders);
-    IMAGE_SECTION_HEADER* section = IMAGE_FIRST_SECTION(ntHeaders);
-    for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++, section++)
-        memcpy(imageBase + section->VirtualAddress, dllBuffer + section->PointerToRawData, section->SizeOfRawData);
 
-    // Apply relocations
-    SIZE_T delta = (SIZE_T)(imageBase - ntHeaders->OptionalHeader.ImageBase);
-    IMAGE_DATA_DIRECTORY relocDir = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
-    if (delta && relocDir.Size) {
-        IMAGE_BASE_RELOCATION* reloc = (IMAGE_BASE_RELOCATION*)(imageBase + relocDir.VirtualAddress);
-        SIZE_T offset = 0;
-        while (offset < relocDir.Size) {
-            WORD* entry = (WORD*)((BYTE*)reloc + sizeof(IMAGE_BASE_RELOCATION));
-            int count = (reloc->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION)) / sizeof(WORD);
-            for (int i = 0; i < count; i++) {
-                WORD type = entry[i] >> 12;
-                WORD rva = entry[i] & 0x0FFF;
-                if (type == IMAGE_REL_BASED_HIGHLOW || type == IMAGE_REL_BASED_DIR64)
-                    *(SIZE_T*)(imageBase + reloc->VirtualAddress + rva) += delta;
-            }
-            offset += reloc->SizeOfBlock;
-            reloc = (IMAGE_BASE_RELOCATION*)((BYTE*)reloc + reloc->SizeOfBlock);
-        }
+    // Copy sections
+    IMAGE_SECTION_HEADER* section = IMAGE_FIRST_SECTION(ntHeaders);
+    for (size_t i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++, section++) {
+        BYTE* dest = imageBase + section->VirtualAddress;
+        BYTE* src = dllBuffer + section->PointerToRawData;
+        size_t copySize = section->SizeOfRawData;
+        size_t totalSize = section->Misc.VirtualSize;
+
+        memcpy(dest, src, copySize);
+        if (totalSize > copySize)
+            memset(dest + copySize, 0, totalSize - copySize);
     }
 
     // Resolve imports
@@ -62,41 +54,45 @@ HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
         IMAGE_IMPORT_DESCRIPTOR* importDesc = (IMAGE_IMPORT_DESCRIPTOR*)(imageBase + importsDir.VirtualAddress);
         while (importDesc->Name) {
             HMODULE hDep = LoadLibraryA((char*)(imageBase + importDesc->Name));
-            IMAGE_THUNK_DATA* thunk = (IMAGE_THUNK_DATA*)(imageBase + importDesc->FirstThunk);
+            IMAGE_THUNK_DATA64* thunk = (IMAGE_THUNK_DATA64*)(imageBase + importDesc->FirstThunk);
             while (thunk->u1.Function) {
-                thunk->u1.Function = (SIZE_T)(
-                    (thunk->u1.Ordinal & IMAGE_ORDINAL_FLAG)
-                        ? GetProcAddress(hDep, (LPCSTR)(thunk->u1.Ordinal & 0xFFFF))
-                        : GetProcAddress(hDep, ((IMAGE_IMPORT_BY_NAME*)(imageBase + thunk->u1.AddressOfData))->Name)
-                );
+                if (thunk->u1.Ordinal & IMAGE_ORDINAL_FLAG64)
+                    thunk->u1.Function = (SIZE_T)GetProcAddress(hDep, (LPCSTR)(thunk->u1.Ordinal & 0xFFFF));
+                else
+                    thunk->u1.Function = (SIZE_T)GetProcAddress(hDep, ((IMAGE_IMPORT_BY_NAME*)(imageBase + thunk->u1.AddressOfData))->Name);
                 thunk++;
             }
             importDesc++;
         }
     }
 
-    // Set memory protection for sections
+    // Protect headers + first section
     section = IMAGE_FIRST_SECTION(ntHeaders);
-    BYTE* regionStart = imageBase + section->VirtualAddress;
-    SIZE_T regionSize = section->Misc.VirtualSize;
-    DWORD currentProtect = GetProtection(section->Characteristics);
-    for (int i = 1; i < ntHeaders->FileHeader.NumberOfSections; i++, section++) {
+    DWORD oldProtect;
+    SIZE_T firstSize = (section->VirtualAddress + section->Misc.VirtualSize);
+    VirtualProtect(imageBase, firstSize, PAGE_READONLY, &oldProtect);
+
+    // Protect remaining sections
+    BYTE* regionStart = imageBase + section->VirtualAddress + section->Misc.VirtualSize;
+    SIZE_T regionSize = 0;
+    DWORD currentProtect = 0;
+    for (size_t i = 1; i < ntHeaders->FileHeader.NumberOfSections; i++, section++) {
         DWORD protect = GetProtection(section->Characteristics);
         BYTE* secStart = imageBase + section->VirtualAddress;
         SIZE_T secSize = section->Misc.VirtualSize;
 
-        if (protect == currentProtect && regionStart + regionSize == secStart)
-            regionSize += secSize;
+        if (regionSize && protect == currentProtect && regionStart + regionSize == secStart)
+            regionSize += secSize; // merge with previous
         else {
-            DWORD oldProtect;
-            VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
+            if (regionSize)
+                VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
             regionStart = secStart;
             regionSize = secSize;
             currentProtect = protect;
         }
     }
-    DWORD oldProtect;
-    VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
+    if (regionSize)
+        VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
 
     // Call DLL entry point
     DllEntryProc DllMain = (DllEntryProc)(imageBase + ntHeaders->OptionalHeader.AddressOfEntryPoint);
@@ -108,7 +104,7 @@ HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
     return (HMODULE)imageBase;
 }
 
-// Read DLL file into memory
+// Read a DLL file into memory
 BYTE* ReadDLL(const char* path, SIZE_T* outSize) {
     FILE* f = fopen(path, "rb");
     if (!f) return NULL;
@@ -116,7 +112,7 @@ BYTE* ReadDLL(const char* path, SIZE_T* outSize) {
     SIZE_T size = ftell(f);
     fseek(f, 0, SEEK_SET);
     BYTE* buffer = (BYTE*)malloc(size);
-    fread(buffer, 1, size, f);
+    fread(buffer, size, 1, f);
     fclose(f);
     *outSize = size;
     return buffer;
