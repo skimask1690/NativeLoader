@@ -5,7 +5,7 @@ This project demonstrates a **minimal Windows loader** that dynamically resolves
 - Access the Windows **PEB (Process Environment Block)** to enumerate loaded modules.
 - Implement custom versions of `GetModuleHandleA` and `GetProcAddress`.
 - Load additional DLLs (`LdrLoadDll`) at runtime.
-- Call functions (like `CreateProcess`) dynamically.
+- Call functions (like `CreateProcessA`) dynamically.
 
 ---
 
@@ -49,3 +49,4 @@ This tool is provided for educational and research purposes only. The author is 
 ## 📜 License
 
 This project is released under the [MIT License](LICENSE).
+
