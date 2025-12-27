@@ -33,13 +33,13 @@ objcopy -O binary --only-section=.text msgbox.exe shellcode.bin
 
 Build the shellcode loader:
 ```bash
-x86_64-w64-mingw32-gcc loader.c -o loader.exe
+x86_64-w64-mingw32-gcc loadshc.c -o loader.exe
 ```
 
 ## 🔹 Usage
 Run the loader and pass the shellcode as an argument:
 ```bash
-loader.exe shellcode.bin
+loadshc.exe shellcode.bin
 ```
 This will load the shellcode into memory and execute it.
 
