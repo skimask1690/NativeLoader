@@ -160,6 +160,7 @@ compile_cmd = [
     "-s", "-nostdlib", "-nostartfiles", "-ffreestanding",
     "-fno-ident", "-Wl,-subsystem,windows", "-e", "_start",
     "-Os", "-fPIC", "-fno-asynchronous-unwind-tables",
+    "-mno-stack-arg-probe", "-fno-stack-protector",
     "-x", "c", "-", "-o", output_exe
 ]
 
