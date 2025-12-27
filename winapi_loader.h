@@ -99,7 +99,7 @@ static FARPROC myGetProcAddress(HMODULE hMod, const char* fnName) {
     for (DWORD i = 0; i < exp->NumberOfNames; i++) {
         const char* p1 = (const char*)(base + names[i]);
         const char* p2 = fnName;
-        while (*p1 && (*p1 | 0x20) == (*p2 | 0x20)) { ++p1; ++p2; }
+        while (*p1 && (*p1) == (*p2)) { ++p1; ++p2; }
         if (*p2 == 0)
             return (FARPROC)(base + funcs[ords[i]]);
     }
