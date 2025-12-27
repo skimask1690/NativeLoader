@@ -10,9 +10,7 @@
 // -------------------- XOR helpers (-DXOR) --------------------
 #ifdef XOR
 
-#define MIX8(x) ((unsigned char)( \
-    (((x) ^ ((x) >> 3) ^ ((x) >> 5) ^ ((x) * 17) ^ ((x) * 59)) & 0xFF) \
-))
+#define MIX8(x) (((x) ^ (x >> 3) ^ (x >> 5) ^ (x * 17) ^ (x * 59)) & 0xFF)
 
 #define XOR_KEY(nonce) \
     MIX8( \
