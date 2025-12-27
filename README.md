@@ -23,12 +23,7 @@ Requires `gcc` targeting 64-bit Windows
 
 Build the MessageBox example:
 ```bash
-x86_64-w64-mingw32-gcc examples/msgbox.c -nostdlib -nostartfiles -e _start -Os -s -fno-ident -fno-asynchronous-unwind-tables -mno-stack-arg-probe -I. -T linker.ld -o msgbox.exe
-```
-
-Extract shellcode from .text:
-```bash
-objcopy -O binary --only-section=.text msgbox.exe msgbox.bin
+compile.py examples/msgbox.c msgbox.bin
 ```
 
 Build the shellcode loader:
