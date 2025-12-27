@@ -1,7 +1,7 @@
 #include "winapi_loader.h"
 
 // -------------------- Function pointer types --------------------
-typedef int (WINAPI* MessageBoxW_t)(HWND, LPCWSTR, LPCWSTR, UINT);
+typedef int (WINAPI *MessageBoxW_t)(HWND, LPCWSTR, LPCWSTR, UINT);
 
 // -------------------- Strings --------------------
 STRINGW(user32_dll, "user32.dll")
