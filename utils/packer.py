@@ -157,10 +157,11 @@ void _start() {{
 
 compile_cmd = [
     "x86_64-w64-mingw32-gcc",
-    "-s", "-nostdlib", "-nostartfiles", "-ffreestanding",
-    "-fno-ident", "-Wl,-subsystem,windows", "-e", "_start",
-    "-fno-unwind-tables", "-fno-asynchronous-unwind-tables",
-    "-Os", "-fPIC", "-mno-stack-arg-probe", "-fno-stack-protector",
+    "-nostdlib", "-nostartfiles",
+    "-Wl,-subsystem,windows", "-e", "_start",
+    "-Os", "-s", "-fno-ident", 
+    "-fno-asynchronous-unwind-tables",
+    "-mno-stack-arg-probe",
     "-x", "c", "-", "-o", output_exe
 ]
 
