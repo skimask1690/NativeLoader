@@ -3,9 +3,9 @@
 This project demonstrates a **minimal x64 Windows loader** that dynamically resolves DLLs and functions **without using the C runtime or static imports**. It shows how to:
 
 - Access the Windows **PEB (Process Environment Block)** to enumerate loaded modules.
-- Implement custom versions of `GetModuleHandle*` and `GetProcAddress`.
+- Implement custom versions of `GetModuleHandleA` and `GetProcAddress`.
 - Load additional DLLs (`LdrLoadDll`) at runtime.
-- Call functions (like `CreateProcess*`) dynamically.
+- Call functions (like `CreateProcessA`) dynamically.
 
 ---
 
