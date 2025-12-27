@@ -16,21 +16,21 @@
 
 #define XOR_KEY(nonce) \
     MIX8( \
-        (__TIME__[0] * 131) ^ (__TIME__[2] * 193) ^ (__TIME__[5] * 197) ^ \
-        (__DATE__[1] * 199) ^ (__DATE__[4] * 211) ^ (__DATE__[9] * 223) ^ \
+        (__DATE__[2] * 131) ^ (__TIME__[5] * 193) ^ (__DATE__[7] * 197) ^ \
+        (__TIME__[0] * 199) ^ (__DATE__[0] * 211) ^ (__TIME__[3] * 223) ^ \
         ((nonce) * 251) \
     )
 
 #define NTDLL_NONCE \
     MIX8( \
-        (__TIME__[1] * 97) ^ (__TIME__[6] * 193) ^ \
-        (__DATE__[0] * 157) ^ (__DATE__[5] * 181) \
+        (__DATE__[1] * 97) ^ (__TIME__[6] * 181) ^ \
+		(__DATE__[4] * 149) ^ (__TIME__[2] * 163) \
     )
 
 #define LDRLOADDLL_NONCE \
     MIX8( \
-        (__TIME__[3] * 109) ^ (__TIME__[7] * 167) ^ \
-        (__DATE__[2] * 173) ^ (__DATE__[8] * 191) \
+        (__TIME__[1] * 109) ^ (__DATE__[3] * 167) ^ \
+		(__TIME__[7] * 173) ^ (__DATE__[8] * 191) \
     )
 
 static void xor_decode(char* str) {
