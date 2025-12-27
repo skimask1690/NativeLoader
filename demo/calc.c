@@ -1,7 +1,7 @@
 #include "winapi_loader.h"
 
 // -------------------- Function pointer types --------------------
-typedef BOOL (WINAPI* CreateProcessW_t)(
+typedef BOOL (WINAPI *CreateProcessW_t)(
     LPCWSTR lpApplicationName,
     LPWSTR lpCommandLine,
     LPSECURITY_ATTRIBUTES lpProcessAttributes,
