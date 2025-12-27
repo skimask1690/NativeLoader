@@ -1,7 +1,7 @@
-#if __has_include("winapi_loader.h")
-#include "winapi_loader.h"
-#else
+#if __has_include("../winapi_loader.h")
 #include "../winapi_loader.h"
+#else
+#include "winapi_loader.h"
 #endif
 
 // -------------------- Function pointer types --------------------
@@ -34,4 +34,3 @@ void _start(void) {
 	
     pCreateProcessA(NULL, command, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 }
-
