@@ -195,4 +195,3 @@ static HMODULE myLoadLibraryW(const wchar_t* dllNameW) {
 }
 
 #endif // WINAPI_LOADER_H
-
