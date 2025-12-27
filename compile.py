@@ -3,7 +3,7 @@ import sys
 import subprocess
 
 if len(sys.argv) < 3:
-    print(f"Usage: {os.path.basename(sys.argv[0])} <source.c> <output.bin> [-exe | -dll] [-xor]")
+    print(f"Usage: {os.path.basename(sys.argv[0])} <source.c> <output.bin> [-exe|-dll] [-xor]")
     sys.exit(1)
 
 args = [arg.lower() for arg in sys.argv]
