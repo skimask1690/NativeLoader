@@ -13,7 +13,7 @@ This project demonstrates a **minimal Windows loader** that dynamically resolves
 
 - Manual module resolution through the PEB.
 - Manual export resolution from PE export tables.
-- Dynamic `LoadLibrary` / `GetProcAddress` usage without static imports.
+- Dynamic `LoadLibrary*` / `GetProcAddress` usage without static imports.
 - Freestanding (no CRT / no standard startup files).
 - Minimal, lightweight shellcode.
 
@@ -23,7 +23,7 @@ Requires `gcc` targeting 64-bit Windows
 
 Build the demo:
 ```bash
-x86_64-w64-mingw32-gcc -s msgbox.c -nostdlib -nostartfiles -ffreestanding -fno-ident -Wl,-subsystem,windows -e _start -Os -fPIC -fno-asynchronous-unwind-tables -o msgbox.exe -T linker.ld 
+x86_64-w64-mingw32-gcc -s msgbox.c -nostdlib -nostartfiles -ffreestanding -fno-ident -Wl,-subsystem,windows -e _start -Os -fPIC -fno-asynchronous-unwind-tables -fno-stack-protector -mno-stack-arg-probe -o msgbox.exe -T linker.ld 
 ```
 
 Extract shellcode from .text:
@@ -49,4 +49,3 @@ This tool is provided for educational and research purposes only. The author is 
 ## 📜 License
 
 This project is released under the [MIT License](LICENSE).
-
