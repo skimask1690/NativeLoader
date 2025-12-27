@@ -28,4 +28,3 @@ int _start(void) {
     pMessageBoxA(NULL, hello_msg, title_msg, MB_OK | MB_ICONINFORMATION);
     pExitProcess(0);
 }
-
