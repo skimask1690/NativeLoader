@@ -1,4 +1,8 @@
+#if __has_include("winapi_loader.h")
 #include "winapi_loader.h"
+#else
+#include "../winapi_loader.h"
+#endif
 
 // -------------------- Function pointer types --------------------
 typedef int (WINAPI *MessageBoxA_t)(HWND, LPCSTR, LPCSTR, UINT);
