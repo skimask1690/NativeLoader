@@ -19,8 +19,8 @@
         ((len) * 251) \
     )
 
-#define NTDLL_NONCE 9
-#define LDRLOADDLL_NONCE 10
+#define NTDLL_LEN 9
+#define LDRLOADDLL_LEN 10
 
 static void xor_decode(char* str) {
     size_t len = 0;
