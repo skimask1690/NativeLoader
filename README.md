@@ -28,7 +28,7 @@ x86_64-w64-mingw32-gcc msgbox.c -nostdlib -nostartfiles -e _start -Os -s -fno-id
 
 Extract shellcode from .text:
 ```bash
-objcopy -O binary --only-section=.text msgbox.exe shellcode.bin
+objcopy -O binary --only-section=.text msgbox.exe msgbox.bin
 ```
 
 Build the shellcode loader:
@@ -39,7 +39,7 @@ x86_64-w64-mingw32-gcc loadshc.c -o loadshc.exe
 ## 🔹 Usage
 Run the loader and pass the shellcode as an argument:
 ```bash
-loadshc.exe shellcode.bin
+loadshc.exe msgbox.bin
 ```
 This will load the shellcode into memory and execute it.
 
