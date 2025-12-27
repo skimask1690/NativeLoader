@@ -10,26 +10,17 @@
 // -------------------- XOR helpers (-DXOR) --------------------
 #ifdef XOR
 
-#define MIX8(x) (((x) ^ (x >> 3) ^ (x >> 5) ^ (x * 17) ^ (x * 59)) & 0xFF)
+#define MIX8(x) (x) ^ ((x) >> 4) ^ ((x) * 17)
 
-#define XOR_KEY(nonce) \
+#define XOR_KEY(len) \
     MIX8( \
         (__DATE__[2] * 131) ^ (__TIME__[5] * 193) ^ (__DATE__[7] * 197) ^ \
         (__TIME__[0] * 199) ^ (__DATE__[0] * 211) ^ (__TIME__[3] * 223) ^ \
-        ((nonce) * 251) \
+        ((len) * 251) \
     )
 
-#define NTDLL_NONCE \
-    MIX8( \
-        (__DATE__[1] * 97) ^ (__TIME__[6] * 181) ^ \
-		(__DATE__[4] * 149) ^ (__TIME__[2] * 163) \
-    )
-
-#define LDRLOADDLL_NONCE \
-    MIX8( \
-        (__TIME__[1] * 109) ^ (__DATE__[3] * 167) ^ \
-		(__TIME__[7] * 173) ^ (__DATE__[8] * 191) \
-    )
+#define NTDLL_NONCE 9
+#define LDRLOADDLL_NONCE 10
 
 static void xor_decode(char* str) {
     size_t len = 0;
@@ -143,10 +134,10 @@ static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
 
     char* ldrloaddll = (char*)&stackbuf[10]; // 11 bytes
 #ifdef XOR
-    ldrloaddll[0] = 'L'^XOR_KEY(LDRLOADDLLL_NONCE); ldrloaddll[1] = 'd'^XOR_KEY(LDRLOADDLLL_NONCE); ldrloaddll[2] = 'r'^XOR_KEY(LDRLOADDLLL_NONCE);
-    ldrloaddll[3] = 'L'^XOR_KEY(LDRLOADDLLL_NONCE); ldrloaddll[4] = 'o'^XOR_KEY(LDRLOADDLLL_NONCE); ldrloaddll[5] = 'a'^XOR_KEY(LDRLOADDLLL_NONCE);
-    ldrloaddll[6] = 'd'^XOR_KEY(LDRLOADDLLL_NONCE); ldrloaddll[7] = 'D'^XOR_KEY(LDRLOADDLLL_NONCE); ldrloaddll[8] = 'l'^XOR_KEY(LDRLOADDLLL_NONCE);
-    ldrloaddll[9] = 'l'^XOR_KEY(LDRLOADDLLL_NONCE); ldrloaddll[10] = 0;
+    ldrloaddll[0] = 'L'^XOR_KEY(LDRLOADDLL_NONCE); ldrloaddll[1] = 'd'^XOR_KEY(LDRLOADDLL_NONCE); ldrloaddll[2] = 'r'^XOR_KEY(LDRLOADDLL_NONCE);
+    ldrloaddll[3] = 'L'^XOR_KEY(LDRLOADDLL_NONCE); ldrloaddll[4] = 'o'^XOR_KEY(LDRLOADDLL_NONCE); ldrloaddll[5] = 'a'^XOR_KEY(LDRLOADDLL_NONCE);
+    ldrloaddll[6] = 'd'^XOR_KEY(LDRLOADDLL_NONCE); ldrloaddll[7] = 'D'^XOR_KEY(LDRLOADDLL_NONCE); ldrloaddll[8] = 'l'^XOR_KEY(LDRLOADDLL_NONCE);
+    ldrloaddll[9] = 'l'^XOR_KEY(LDRLOADDLL_NONCE); ldrloaddll[10] = 0;
     xor_decode(ldrloaddll);
 #else
     ldrloaddll[0] = 'L'; ldrloaddll[1] = 'd'; ldrloaddll[2] = 'r';
