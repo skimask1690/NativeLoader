@@ -15,5 +15,4 @@ int _start(void) {
     HMODULE hUser32 = myLoadLibraryA(user32_dll);
     MessageBoxW_t pMessageBoxW = (MessageBoxW_t)myGetProcAddress(hUser32, messageboxw);
     pMessageBoxW(NULL, hello_msg, title_msg, MB_OK | MB_ICONINFORMATION);
-
 }
