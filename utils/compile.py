@@ -22,6 +22,7 @@ compile_cmd = [
     "-nostdlib", "-nostartfiles", "-ffreestanding",
     "-fno-ident", "-Wl,-subsystem,windows", "-e", "_start",
     "-Os", "-fPIC", "-fno-asynchronous-unwind-tables",
+    "-mno-stack-arg-probe", "-fno-stack-protector",
     "-o", output_file
 ]
 
