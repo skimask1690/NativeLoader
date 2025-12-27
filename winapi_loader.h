@@ -169,9 +169,12 @@ static void AsciiToWideChar(const char* ascii, UNICODE_STRING* ustr, wchar_t* bu
 }
 
 static HMODULE myLoadLibraryA(const char* dllNameA) {
-    wchar_t buf[17]; // aligned stack
+    size_t len = 0;
+    while (dllNameA[len]) len++;
+    wchar_t buf[len + 1];
+
     UNICODE_STRING ustr;
-    AsciiToWideChar(dllNameA, &ustr, buf, sizeof(buf)/sizeof(buf[0]));
+    AsciiToWideChar(dllNameA, &ustr, buf, len + 1);
     return _myLdrLoadDll(&ustr);
 }
 
@@ -192,3 +195,4 @@ static HMODULE myLoadLibraryW(const wchar_t* dllNameW) {
 }
 
 #endif // WINAPI_LOADER_H
+
