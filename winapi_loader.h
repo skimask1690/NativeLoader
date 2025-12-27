@@ -83,23 +83,6 @@ static HMODULE myGetModuleHandleA(const char* name) {
     return NULL;
 }
 
-// -------------------- myGetModuleHandleW --------------------
-static HMODULE myGetModuleHandleW(const wchar_t* name) {
-    PEB* peb = (PEB*)__readgsqword(0x60);
-    LIST_ENTRY* head = &peb->Ldr->InMemoryOrderModuleList;
-
-    for (LIST_ENTRY* cur = head->Flink; cur != head; cur = cur->Flink) {
-        LDR_DATA_TABLE_ENTRY* ent = (LDR_DATA_TABLE_ENTRY*)((BYTE*)cur - offsetof(LDR_DATA_TABLE_ENTRY, InMemoryOrderLinks));
-        SIZE_T len = ent->BaseDllName.Length / sizeof(WCHAR);
-        SIZE_T i;
-        for (i = 0; i < len && ((ent->BaseDllName.Buffer[i] | 0x20) == (name[i] | 0x20)); ++i);
-        if (i == len && name[i] == 0)
-            return (HMODULE)ent->DllBase;
-    }
-
-    return NULL;
-}
-
 // -------------------- myGetProcAddress --------------------
 static FARPROC myGetProcAddress(HMODULE hMod, const char* fnName) {
     BYTE* base = (BYTE*)hMod;
