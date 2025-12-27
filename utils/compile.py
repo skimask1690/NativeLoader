@@ -18,11 +18,12 @@ output_file = output_bin if use_exe or use_dll else "temp_compile.exe"
 
 compile_cmd = [
     "x86_64-w64-mingw32-gcc",
-    "-s", input_c,
-    "-nostdlib", "-nostartfiles", "-ffreestanding",
-    "-fno-ident", "-fno-unwind-tables", "-e", "_start",
-    "-Os", "-fPIC", "-fno-asynchronous-unwind-tables",
-    "-mno-stack-arg-probe", "-fno-stack-protector",
+    input_c,
+    "-nostdlib", "-nostartfiles",
+    "-Wl,-subsystem,windows", "-e", "_start",
+    "-Os", "-s", "-fno-ident",
+    "-fno-asynchronous-unwind-tables",
+    "-mno-stack-arg-probe",
     "-o", output_file
 ]
 
