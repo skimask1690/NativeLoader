@@ -10,14 +10,14 @@
 // -------------------- XOR helpers (-DXOR) --------------------
 #ifdef XOR
 
-#define MIX8(x) (x) ^ ((x) >> 4) ^ ((x) * 17)
-
-#define XOR_KEY(len) \
-    MIX8( \
-        (__DATE__[2] * 131) ^ (__TIME__[5] * 193) ^ (__DATE__[7] * 197) ^ \
-        (__TIME__[0] * 199) ^ (__DATE__[0] * 211) ^ (__TIME__[3] * 223) ^ \
-        ((len) * 251) \
-    )
+#define XOR_KEY(len) ( \
+    ((__TIME__[0] * 17 ^ __TIME__[1] * 31 ^ __TIME__[2] * 13 ^ __TIME__[3] * 7) ^ \
+    (__TIME__[4] * 23 ^ __TIME__[5] * 19 ^ __TIME__[6] * 29 ^ __TIME__[7] * 11) ^ \
+    (__DATE__[0] * 3 ^ __DATE__[1] * 5 ^ __DATE__[2] * 7 ^ __DATE__[3] * 11) ^ \
+    (__DATE__[4] * 13 ^ __DATE__[5] * 17 ^ __DATE__[6] * 19 ^ __DATE__[7] * 23) ^ \
+    (__DATE__[8] * 29 ^ __DATE__[9] * 31 ^ __DATE__[10] * 37) ^ \
+    (len * 59) & 0xFF) \
+)
 
 #define NTDLL_LEN 9
 #define LDRLOADDLL_LEN 10
