@@ -21,9 +21,9 @@ This project demonstrates a **minimal x64 Windows loader** that dynamically reso
 
 Requires `gcc` targeting 64-bit Windows
 
-Build the demo:
+Build the MessageBox example:
 ```bash
-x86_64-w64-mingw32-gcc msgbox.c -nostdlib -nostartfiles -e _start -Os -s -fno-ident -fno-asynchronous-unwind-tables -mno-stack-arg-probe -T linker.ld -o msgbox.exe
+x86_64-w64-mingw32-gcc examples/msgbox.c -nostdlib -nostartfiles -e _start -Os -s -fno-ident -fno-asynchronous-unwind-tables -mno-stack-arg-probe -I. -T linker.ld -o msgbox.exe
 ```
 
 Extract shellcode from .text:
@@ -33,7 +33,7 @@ objcopy -O binary --only-section=.text msgbox.exe msgbox.bin
 
 Build the shellcode loader:
 ```bash
-x86_64-w64-mingw32-gcc loadshc.c -o loadshc.exe
+x86_64-w64-mingw32-gcc utils/loadshc.c -o loadshc.exe
 ```
 
 ## 🔹 Usage
