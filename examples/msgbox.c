@@ -1,7 +1,7 @@
-#if __has_include("winapi_loader.h")
-#include "winapi_loader.h"
-#else
+#if __has_include("../winapi_loader.h")
 #include "../winapi_loader.h"
+#else
+#include "winapi_loader.h"
 #endif
 
 // -------------------- Function pointer types --------------------
@@ -28,3 +28,4 @@ int _start(void) {
     pMessageBoxA(NULL, hello_msg, title_msg, MB_OK | MB_ICONINFORMATION);
     pExitProcess(0);
 }
+
