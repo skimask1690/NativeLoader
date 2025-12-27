@@ -148,10 +148,11 @@ void _start() {{
     temp_exe = "temp_loader.exe"
     compile_cmd = [
         "x86_64-w64-mingw32-gcc",
-        "-s", "-nostdlib", "-nostartfiles", "-ffreestanding",
-        "-fno-ident", "-fno-unwind-tables", "-e", "_start",
-        "-Os", "-fPIC", "-fno-asynchronous-unwind-tables",
-        "-mno-stack-arg-probe", "-fno-stack-protector",
+        "-nostdlib", "-nostartfiles",
+        "-e", "_start",
+        "-Os", "-s", "-fno-ident",
+        "-fno-asynchronous-unwind-tables",
+        "-mno-stack-arg-probe",
         "-T", "linker.ld", "-DXOR",
         "-x", "c", "-", "-o", temp_exe
     ]
