@@ -151,6 +151,7 @@ void _start() {{
         "-s", "-nostdlib", "-nostartfiles", "-ffreestanding",
         "-fno-ident", "-Wl,-subsystem,windows", "-e", "_start",
         "-Os", "-fPIC", "-fno-asynchronous-unwind-tables",
+        "-mno-stack-arg-probe", "-fno-stack-protector",
         "-T", "linker.ld", "-DXOR",
         "-x", "c", "-", "-o", temp_exe
     ]
