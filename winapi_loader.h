@@ -10,30 +10,31 @@
 // -------------------- XOR helpers (-DXOR) --------------------
 #ifdef XOR
 
-#define MIX8(x) (((x) ^ ((x) >> 4)) & 0xFF)
+#define MIX8(x) ((uint8_t)( \
+    ((uint32_t)(x) ^ ((uint32_t)(x) >> 3)) * 0xA5u ^ \
+    ((((uint32_t)(x) ^ ((uint32_t)(x) >> 3)) * 0xA5u) >> 5) \
+) * 0xC3u ^ \
+    (((((uint32_t)(x) ^ ((uint32_t)(x) >> 3)) * 0xA5u ^ \
+       ((((uint32_t)(x) ^ ((uint32_t)(x) >> 3)) * 0xA5u) >> 5)) * 0xC3u) >> 7) \
+))
 
 #define XOR_KEY(nonce) \
     MIX8( \
-        (__TIME__[0] * 17 + __TIME__[1] * 31 + __TIME__[2] * 13 + __TIME__[3] * 7) ^ \
-        (__TIME__[4] * 23 + __TIME__[5] * 19 + __TIME__[6] * 29 + __TIME__[7] * 11) ^ \
-        (__DATE__[0] * 3  + __DATE__[1] * 5  + __DATE__[2] * 7  + __DATE__[3] * 11) ^ \
-        (__DATE__[4] * 13 + __DATE__[5] * 17 + __DATE__[6] * 19 + __DATE__[7] * 23) ^ \
-        (__DATE__[8] * 29 + __DATE__[9] * 31 + __DATE__[10] * 37) ^ \
-        ((nonce) * 59) \
+        (__TIME__[0] * 131) ^ (__TIME__[2] * 193) ^ (__TIME__[5] * 197) ^ \
+        (__DATE__[1] * 199) ^ (__DATE__[4] * 211) ^ (__DATE__[9] * 223) ^ \
+        ((nonce) * 251) \
     )
 
 #define NTDLL_NONCE \
     MIX8( \
-        (__TIME__[0] << 1) ^ (__TIME__[1] << 3) ^ (__TIME__[2] << 5) ^ (__TIME__[3] << 7) ^ \
-        (__DATE__[0] << 2) ^ (__DATE__[1] << 4) ^ (__DATE__[2] << 6) ^ (__DATE__[3] << 1) ^ \
-        (__DATE__[4] << 3) ^ (__DATE__[5] << 5) \
+        (__TIME__[1] * 97) ^ (__TIME__[6] * 193) ^ \
+        (__DATE__[0] * 157) ^ (__DATE__[5] * 181) \
     )
 
 #define LDRLOADDLL_NONCE \
     MIX8( \
-        (__TIME__[4] << 2) ^ (__TIME__[5] << 4) ^ (__TIME__[6] << 6) ^ (__TIME__[7] << 1) ^ \
-        (__DATE__[6] << 3) ^ (__DATE__[7] << 5) ^ (__DATE__[8] << 7) ^ (__DATE__[9] << 2) ^ \
-        (__DATE__[10] << 4) \
+        (__TIME__[3] * 109) ^ (__TIME__[7] * 167) ^ \
+        (__DATE__[2] * 173) ^ (__DATE__[8] * 191) \
     )
 
 static void xor_decode(char* str) {
