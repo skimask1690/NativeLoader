@@ -149,7 +149,7 @@ void _start() {{
     compile_cmd = [
         "x86_64-w64-mingw32-gcc",
         "-s", "-nostdlib", "-nostartfiles", "-ffreestanding",
-        "-fno-ident", "-Wl,-subsystem,windows", "-e", "_start",
+        "-fno-ident", "-fno-unwind-tables", "-e", "_start",
         "-Os", "-fPIC", "-fno-asynchronous-unwind-tables",
         "-mno-stack-arg-probe", "-fno-stack-protector",
         "-T", "linker.ld", "-DXOR",
