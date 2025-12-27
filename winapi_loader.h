@@ -10,7 +10,7 @@
 // -------------------- XOR helpers (-DXOR) --------------------
 #ifdef XOR
 
-#define XOR_KEY(len) ( \
+#define XOR_KEY(nonce) ( \
     (unsigned char)( \
         (__TIME__[0] * 17 ^ __TIME__[1] * 31 ^ __TIME__[2] * 13 ^ __TIME__[3] * 7) ^ \
         (__TIME__[4] * 23 ^ __TIME__[5] * 19 ^ __TIME__[6] * 29 ^ __TIME__[7] * 11) ^ \
