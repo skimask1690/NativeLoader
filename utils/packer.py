@@ -159,8 +159,8 @@ compile_cmd = [
     "x86_64-w64-mingw32-gcc",
     "-s", "-nostdlib", "-nostartfiles", "-ffreestanding",
     "-fno-ident", "-Wl,-subsystem,windows", "-e", "_start",
-    "-Os", "-fPIC", "-fno-asynchronous-unwind-tables",
-    "-mno-stack-arg-probe", "-fno-stack-protector",
+    "-fno-unwind-tables", "-fno-asynchronous-unwind-tables",
+    "-Os", "-fPIC", "-mno-stack-arg-probe", "-fno-stack-protector",
     "-x", "c", "-", "-o", output_exe
 ]
 
