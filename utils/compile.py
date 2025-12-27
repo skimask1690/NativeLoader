@@ -20,7 +20,7 @@ compile_cmd = [
     "x86_64-w64-mingw32-gcc",
     "-s", input_c,
     "-nostdlib", "-nostartfiles", "-ffreestanding",
-    "-fno-ident", "-Wl,-subsystem,windows", "-e", "_start",
+    "-fno-ident", "-fno-unwind-tables", "-e", "_start",
     "-Os", "-fPIC", "-fno-asynchronous-unwind-tables",
     "-mno-stack-arg-probe", "-fno-stack-protector",
     "-o", output_file
