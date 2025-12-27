@@ -23,7 +23,7 @@ Requires `gcc` targeting 64-bit Windows
 
 Build the demo:
 ```bash
-x86_64-w64-mingw32-gcc -s msgbox.c -nostdlib -nostartfiles -ffreestanding -fno-ident -fno-unwind-tables -e _start -Os -fPIC -fno-asynchronous-unwind-tables -fno-stack-protector -mno-stack-arg-probe -o msgbox.exe -T linker.ld 
+x86_64-w64-mingw32-gcc -s msgbox.c -nostdlib -nostartfiles -ffreestanding -fno-ident -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -mno-stack-arg-probe -fPIC -e _start -Os -o msgbox.exe -T linker.ld 
 ```
 
 Extract shellcode from .text:
