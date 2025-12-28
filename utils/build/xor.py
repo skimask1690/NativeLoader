@@ -152,7 +152,6 @@ void _start() {{
         "-e", "_start",
         "-Os", "-s", "-fno-ident",
         "-fno-asynchronous-unwind-tables",
-        "-mno-stack-arg-probe",
         "-T", "linker.ld", "-DXOR",
         "-x", "c", "-", "-o", temp_exe
     ]
