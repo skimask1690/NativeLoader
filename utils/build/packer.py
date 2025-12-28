@@ -161,7 +161,6 @@ compile_cmd = [
     "-Wl,-subsystem,windows", "-e", "_start",
     "-Os", "-s", "-fno-ident", 
     "-fno-asynchronous-unwind-tables",
-    "-mno-stack-arg-probe",
     "-x", "c", "-", "-o", output_exe
 ]
 
