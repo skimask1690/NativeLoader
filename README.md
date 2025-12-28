@@ -23,7 +23,7 @@ Requires `gcc` targeting 64-bit Windows
 
 Build the MessageBox example:
 ```bash
-compile.py examples/msgbox.c msgbox.bin
+python compile.py examples/msgbox.c msgbox.bin
 ```
 
 Build the shellcode loader:
