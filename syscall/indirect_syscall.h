@@ -7,7 +7,7 @@
 #define SYSCALL_PREPARE(name)           \
     do {                                \
         g_ssn  = ResolveSSN(name);      \
-        g_stub = BuildIndirectSyscallStub(g_ssn); \
+        g_stub = BuildSyscallStub(g_ssn); \
     } while (0)
 
 #define SYSCALL_CALL(type) ((type)g_stub)
