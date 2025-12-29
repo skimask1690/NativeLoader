@@ -53,22 +53,6 @@ static NTSTATUS IndirectSyscall(void) {
 
 /* ================= SSN resolver ================= */
 static DWORD ResolveSSN(const char* functionName) {
-	char stackbuf[10];
-
-    char* ntdll_dll = stackbuf;
-#ifdef XOR
-    ntdll_dll[0] = 'n'^XOR_KEY(9); ntdll_dll[1] = 't'^XOR_KEY(9);
-    ntdll_dll[2] = 'd'^XOR_KEY(9); ntdll_dll[3] = 'l'^XOR_KEY(9);
-    ntdll_dll[4] = 'l'^XOR_KEY(9); ntdll_dll[5] = '.'^XOR_KEY(9);
-    ntdll_dll[6] = 'd'^XOR_KEY(9); ntdll_dll[7] = 'l'^XOR_KEY(9);
-    ntdll_dll[8] = 'l'^XOR_KEY(9); ntdll_dll[9] = 0;
-    xor_decode(ntdll_dll);
-#else
-    ntdll_dll[0] = 'n'; ntdll_dll[1] = 't'; ntdll_dll[2] = 'd';
-    ntdll_dll[3] = 'l'; ntdll_dll[4] = 'l'; ntdll_dll[5] = '.';
-    ntdll_dll[6] = 'd'; ntdll_dll[7] = 'l'; ntdll_dll[8] = 'l';
-    ntdll_dll[9] = 0;
-#endif
 
     HMODULE hNtdll = myGetModuleHandleA(ntdll_dll);
     BYTE* funcBytes = (BYTE*)myGetProcAddress(hNtdll, functionName);
