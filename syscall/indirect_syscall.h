@@ -50,14 +50,7 @@ static void *BuildSyscallStub(DWORD ssn) {
     PVOID  base = NULL;
     SIZE_T size = 0x20;
 
-    NtAllocateVirtualMemory(
-        (HANDLE)-1,
-        &base,
-        0,
-        &size,
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_READWRITE
-    );
+    NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
     unsigned char *p = (unsigned char *)base;
 
