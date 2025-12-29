@@ -50,18 +50,18 @@ static void *GetSyscallAddr(const char *name) {
 
 /* ================= Indirect syscall stub ================= */
 static void *BuildIndirectStub(DWORD ssn, void *syscall_addr) {
-    NTSTATUS (NTAPI *NtAllocateVirtualMemory)(HANDLE, PVOID *, ULONG_PTR, PSIZE_T, ULONG, ULONG);
-    NTSTATUS (NTAPI *NtProtectVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG, PULONG);
+    NTSTATUS (NTAPI *pNtAllocateVirtualMemory)(HANDLE, PVOID *, ULONG_PTR, PSIZE_T, ULONG, ULONG);
+    NTSTATUS (NTAPI *pNtProtectVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG, PULONG);
 
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
 
-    NtAllocateVirtualMemory = (void *)myGetProcAddress(ntdll, ntallocvm);
-    NtProtectVirtualMemory = (void *)myGetProcAddress(ntdll, ntprotectvm);
+    pNtAllocateVirtualMemory = (void *)myGetProcAddress(ntdll, ntallocvm);
+    pNtProtectVirtualMemory = (void *)myGetProcAddress(ntdll, ntprotectvm);
 
     PVOID  base = NULL;
     SIZE_T size = 14;
 
-    NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    pNtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
     BYTE *p = (BYTE *)base;
 
@@ -76,7 +76,7 @@ static void *BuildIndirectStub(DWORD ssn, void *syscall_addr) {
     *(void **)(p + 14) = syscall_addr;
 
     ULONG old;
-    NtProtectVirtualMemory((HANDLE)-1, &base, &size,PAGE_EXECUTE_READ, &old);
+    pNtProtectVirtualMemory((HANDLE)-1, &base, &size,PAGE_EXECUTE_READ, &old);
 
     return base;
 }
