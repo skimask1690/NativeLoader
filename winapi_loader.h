@@ -96,7 +96,7 @@ typedef NTSTATUS(NTAPI* LdrLoadDll_t)(
 );
 
 static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
-    unsigned char stackbuf[21];
+    char stackbuf[21];
 
     char* ntdll_dll = (char*)&stackbuf[0]; // 10 bytes
 	char* ldrloaddll = (char*)&stackbuf[10]; // 11 bytes
