@@ -4,7 +4,7 @@
 #include <windows.h>
 #include <winternl.h>
 
-// -------------------- Optional string macros --------------------
+// -------------------- String macros --------------------
 #define STRINGA(name, value) __attribute__((section(".text"))) static char name[] = value;
 #define STRINGW(name, value) __attribute__((section(".text"))) static wchar_t name[] = L##value;
 
