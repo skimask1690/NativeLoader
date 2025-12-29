@@ -2,6 +2,7 @@
 #define WINAPI_LOADER_H
 
 #include <windows.h>
+#include <winternl.h>
 
 // -------------------- Optional string helpers --------------------
 #define STRINGA(name, value) __attribute__((section(".text"))) static char name[] = value;
@@ -30,39 +31,21 @@ static void xor_decode(char* str) {
 #endif // XOR
 
 // -------------------- PEB structs --------------------
-typedef struct _UNICODE_STRING {
-    USHORT Length;
-    USHORT MaximumLength;
-    PWSTR Buffer;
-} UNICODE_STRING;
-
-typedef struct _LDR_DATA_TABLE_ENTRY {
-    LIST_ENTRY InLoadOrderLinks;
-    LIST_ENTRY InMemoryOrderLinks;
-    LIST_ENTRY InInitializationOrderLinks;
-    PVOID DllBase;
-    PVOID EntryPoint;
-    ULONG SizeOfImage;
-    UNICODE_STRING FullDllName;
-    UNICODE_STRING BaseDllName;
-} LDR_DATA_TABLE_ENTRY;
-
-typedef struct _PEB_LDR_DATA {
-    ULONG Length;
-    UCHAR Initialized;
-    PVOID SsHandle;
-    LIST_ENTRY InLoadOrderModuleList;
-    LIST_ENTRY InMemoryOrderModuleList;
-    LIST_ENTRY InInitializationOrderModuleList;
-} PEB_LDR_DATA;
-
-typedef struct _PEB {
-    BYTE Reserved1[2];
-    BYTE BeingDebugged;
-    BYTE Reserved2[1];
-    PVOID Reserved3[2];
-    PEB_LDR_DATA* Ldr;
-} PEB;
+typedef struct _LDR_MODULE {
+  LIST_ENTRY InLoadOrderModuleList;
+  LIST_ENTRY InMemoryOrderModuleList;
+  LIST_ENTRY InInitializationOrderModuleList;
+  PVOID BaseAddress;
+  PVOID EntryPoint;
+  ULONG SizeOfImage;
+  UNICODE_STRING FullDllName;
+  UNICODE_STRING BaseDllName;
+  ULONG Flags;
+  SHORT LoadCount;
+  SHORT TlsIndex;
+  LIST_ENTRY HashTableEntry;
+  ULONG TimeDateStamp;
+} LDR_MODULE, *PLDR_MODULE;
 
 // -------------------- myGetModuleHandleA --------------------
 static HMODULE myGetModuleHandleA(const char* name) {
@@ -70,12 +53,12 @@ static HMODULE myGetModuleHandleA(const char* name) {
     LIST_ENTRY* head = &peb->Ldr->InMemoryOrderModuleList;
 
     for (LIST_ENTRY* cur = head->Flink; cur != head; cur = cur->Flink) {
-        LDR_DATA_TABLE_ENTRY* ent = (LDR_DATA_TABLE_ENTRY*)((BYTE*)cur - offsetof(LDR_DATA_TABLE_ENTRY, InMemoryOrderLinks));
-        SIZE_T len = ent->BaseDllName.Length / sizeof(WCHAR);
+        PLDR_MODULE mod = (PLDR_MODULE)((BYTE*)cur - offsetof(LDR_MODULE, InMemoryOrderModuleList));
+        SIZE_T len = mod->BaseDllName.Length / sizeof(WCHAR);
         SIZE_T i;
-        for (i = 0; i < len && ((char)ent->BaseDllName.Buffer[i] | 0x20) == (name[i] | 0x20); ++i);
+        for (i = 0; i < len && ((char)(mod->BaseDllName.Buffer[i]) | 0x20) == (name[i] | 0x20); ++i);
         if (i == len && name[i] == 0)
-            return (HMODULE)ent->DllBase;
+            return (HMODULE)mod->BaseAddress;
     }
 
     return NULL;
