@@ -37,7 +37,7 @@ static DWORD ResolveSSN(const char *name) {
     return 0xFFFFFFFF;
 }
 
-/* ================= Indirect syscall stub ================= */
+/* ================= Indirect syscall core ================= */
 static void *GetSyscallAddr(const char *name) {
     BYTE *f = (BYTE *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), name);
 
