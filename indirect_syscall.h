@@ -1,0 +1,136 @@
+#ifndef INDIRECT_SYSCALL_H
+#define INDIRECT_SYSCALL_H
+
+#include "winapi_loader.h"
+
+/* ================= Macros ================= */
+#define SYSCALL_PREPARE(name) do { stub_addr = GetNtStubAddress(name); ssn = ResolveSSN(name); } while (0)
+#define SYSCALL_CALL(type) ((type)IndirectSyscall)
+
+/* ================= Function pointer types ================= */
+typedef NTSTATUS (NTAPI *NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+typedef NTSTATUS (NTAPI *NtReadFile_t)(HANDLE, HANDLE, PVOID, PVOID, PIO_STATUS_BLOCK, PVOID, ULONG, PLARGE_INTEGER, PULONG);
+typedef NTSTATUS (NTAPI *NtAllocateVirtualMemory_t)(HANDLE, PVOID*, ULONG_PTR, PSIZE_T, ULONG, ULONG);
+typedef NTSTATUS (NTAPI *NtFreeVirtualMemory_t)(HANDLE, PVOID*, PSIZE_T, ULONG);
+typedef NTSTATUS (NTAPI *NtQueryInformationFile_t)(HANDLE, PIO_STATUS_BLOCK, PVOID, ULONG, FILE_INFORMATION_CLASS);
+typedef NTSTATUS (NTAPI *NtClose_t)(HANDLE);
+
+/* ================= Strings ================= */
+STRINGA(ntdll_dll, "ntdll.dll");
+STRINGA(ntcreatefile, "NtCreateFile");
+STRINGA(ntreadfile, "NtReadFile");
+STRINGA(ntclose, "NtClose");
+STRINGW(path, "\\SystemRoot\\System32\\ntdll.dll");
+STRINGA(ntqueryinfo, "NtQueryInformationFile");
+STRINGA(ntallocvm, "NtAllocateVirtualMemory");
+STRINGA(ntfreevm, "NtFreeVirtualMemory");
+
+/* ================= Helpers ================= */
+static volatile DWORD ssn;
+void* stub_addr;
+
+static void* GetNtStubAddress(const char* name) {
+    HMODULE hNtdll = myGetModuleHandleA(ntdll_dll);
+    BYTE* base = (BYTE*)myGetProcAddress(hNtdll, name);
+
+    for (int i = 0; i < 64; i++) {
+        if (base[i] == 0x0F && base[i+1] == 0x05) {
+            return (void*)(base + i);
+        }
+    }
+    return NULL;
+}
+
+/* ================= Indirect syscall core ================= */
+__attribute__((naked))
+static NTSTATUS IndirectSyscall(void) {
+    __asm__ volatile(
+        "mov %rcx, %r10\n"
+        "mov ssn(%rip), %eax\n"
+        "jmp *stub_addr(%rip)\n"
+    );
+}
+
+/* ================= SSN resolver ================= */
+static DWORD ResolveSSN(const char* functionName)
+{
+    HMODULE hNtdll = myGetModuleHandleA(ntdll_dll);
+    BYTE* funcBytes = (BYTE*)myGetProcAddress(hNtdll, functionName);
+
+    // first 4 bytes: mov r10, rcx ; mov eax, imm32
+    if (funcBytes[0] == 0x4C &&
+        funcBytes[1] == 0x8B &&
+        funcBytes[2] == 0xD1 &&
+        funcBytes[3] == 0xB8)
+    {
+        return *(DWORD*)(funcBytes + 4);
+    }
+
+    // fallback: search for mov eax, imm32 + syscall
+    for (int i = 0; i < 32; i++) {
+        if (funcBytes[i] == 0xB8 &&
+            funcBytes[i + 5] == 0x0F &&
+            funcBytes[i + 6] == 0x05)
+        {
+            return *(DWORD*)(funcBytes + i + 1);
+        }
+    }
+    return 0xFFFFFFFF;
+}
+
+/* ================= Disk bootstrap via ntdll ================= */
+static void ReadNtdllFromDisk(BYTE** ImageBase, DWORD* ImageSize) {
+    SYSCALL_PREPARE(ntcreatefile);
+    NtCreateFile_t pNtCreateFile = SYSCALL_CALL(NtCreateFile_t);
+
+    SYSCALL_PREPARE(ntreadfile);
+    NtReadFile_t pNtReadFile = SYSCALL_CALL(NtReadFile_t);
+
+    SYSCALL_PREPARE(ntclose);
+    NtClose_t pNtClose = SYSCALL_CALL(NtClose_t);
+
+    SYSCALL_PREPARE(ntqueryinfo);
+    NtQueryInformationFile_t pNtQueryInformationFile = SYSCALL_CALL(NtQueryInformationFile_t);
+
+    SYSCALL_PREPARE(ntallocvm);
+    NtAllocateVirtualMemory_t pNtAllocateVirtualMemory = SYSCALL_CALL(NtAllocateVirtualMemory_t);
+
+    SYSCALL_PREPARE(ntfreevm);
+    NtFreeVirtualMemory_t pNtFreeVirtualMemory = SYSCALL_CALL(NtFreeVirtualMemory_t);
+
+    HANDLE hFile = NULL;
+    IO_STATUS_BLOCK iosb;
+    NTSTATUS st = 0;
+
+    UNICODE_STRING us;
+    us.Buffer = path;
+    us.Length = sizeof(path) - sizeof(WCHAR);
+    us.MaximumLength = sizeof(path);
+
+    OBJECT_ATTRIBUTES oa;
+    InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    FILE_STANDARD_INFORMATION fsi;
+    SIZE_T size = 0;
+    PVOID buffer = NULL;
+
+    st = pNtCreateFile(&hFile, GENERIC_READ, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
+
+    pNtQueryInformationFile(hFile, &iosb, &fsi, sizeof(fsi), FileStandardInformation);
+
+    size = (SIZE_T)fsi.EndOfFile.QuadPart;
+
+    pNtAllocateVirtualMemory((HANDLE)-1, &buffer, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+    st = pNtReadFile(hFile, NULL, NULL, NULL, &iosb, buffer, (ULONG)size, NULL, NULL);
+
+    pNtClose(hFile);
+
+    *ImageBase = (BYTE*)buffer;
+    *ImageSize = (DWORD)iosb.Information;
+
+    SIZE_T zero = 0;
+    pNtFreeVirtualMemory((HANDLE)-1, &buffer, &zero, MEM_RELEASE);
+}
+
+#endif // INDIRECT_SYSCALL_H
