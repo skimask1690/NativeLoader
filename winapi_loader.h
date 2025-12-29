@@ -98,8 +98,8 @@ typedef NTSTATUS(NTAPI* LdrLoadDll_t)(
 static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
     char stackbuf[21];
 
-    char* ntdll_dll = (char*)&stackbuf[0]; // 10 bytes
-	char* ldrloaddll = (char*)&stackbuf[10]; // 11 bytes
+    char* ntdll_dll = &stackbuf[0]; // 10 bytes
+	char* ldrloaddll = &stackbuf[10]; // 11 bytes
 #ifdef XOR
     ntdll_dll[0] = 'n'^XOR_KEY(9); ntdll_dll[1] = 't'^XOR_KEY(9);
     ntdll_dll[2] = 'd'^XOR_KEY(9); ntdll_dll[3] = 'l'^XOR_KEY(9);
