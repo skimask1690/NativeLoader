@@ -37,7 +37,7 @@ static DWORD ResolveSSN(const char *name) {
     return 0xFFFFFFFF;
 }
 
-/* ================= syscall instruction locator ================= */
+/* ================= Indirect syscall stub ================= */
 static void *GetSyscallAddr(const char *name) {
     BYTE *f = (BYTE *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), name);
 
@@ -48,7 +48,6 @@ static void *GetSyscallAddr(const char *name) {
     return NULL;
 }
 
-/* ================= Indirect syscall stub ================= */
 static void *BuildIndirectStub(DWORD ssn, void *syscall_addr) {
     NTSTATUS (NTAPI *pNtAllocateVirtualMemory)(HANDLE, PVOID *, ULONG_PTR, PSIZE_T, ULONG, ULONG);
     NTSTATUS (NTAPI *pNtProtectVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG, PULONG);
@@ -81,4 +80,4 @@ static void *BuildIndirectStub(DWORD ssn, void *syscall_addr) {
     return base;
 }
 
-#endif // INDIRECT_SYSCALL_H
+#endif
