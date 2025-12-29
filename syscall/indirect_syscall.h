@@ -48,7 +48,7 @@ static void *BuildSyscallStub(DWORD ssn) {
     NtProtectVirtualMemory = (void *)myGetProcAddress(ntdll, ntprotectvm);
 
     PVOID  base = NULL;
-    SIZE_T size = 0x20;
+    SIZE_T size = 11;
 
     NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
@@ -57,11 +57,11 @@ static void *BuildSyscallStub(DWORD ssn) {
     p[0]  = 0x4C; // mov r10, rcx
     p[1]  = 0x8B;
     p[2]  = 0xD1;
-    p[3]  = 0xB8; // mov eax, ssn 
+    p[3]  = 0xB8; // mov eax, ssn
     *(DWORD *)(p + 4) = ssn;
-    p[8]  = 0x0F; // syscall 
+    p[8]  = 0x0F; // syscall
     p[9]  = 0x05;
-    p[10] = 0xC3; // ret 
+    p[10] = 0xC3; // ret
 
     ULONG oldProt;
     NtProtectVirtualMemory((HANDLE)-1, &base, &size, PAGE_EXECUTE_READ, &oldProt);
