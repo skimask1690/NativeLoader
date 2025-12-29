@@ -127,9 +127,7 @@ static void ReadNtdllTextSection(BYTE** ImageBase, DWORD* ImageSize) {
     OBJECT_ATTRIBUTES oa;
     InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
-    pNtCreateFile(&hFile, GENERIC_READ, &oa, &iosb, NULL,
-                  FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ,
-                  FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
+    pNtCreateFile(&hFile, GENERIC_READ, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     pNtQueryInformationFile(hFile, &iosb, &fsi, sizeof(fsi), FileStandardInformation);
 
