@@ -28,14 +28,6 @@ static void xor_decode(char* str) {
         str[i] ^= key;
 }
 
-static void xor_decode_w(wchar_t* str) {
-    size_t len = 0;
-    while (str[len]) len++;
-    wchar_t key = XOR_KEY(len);
-    for (size_t i = 0; i < len; i++)
-        str[i] ^= key;
-}
-
 #endif // XOR
 
 // -------------------- PEB structs --------------------
