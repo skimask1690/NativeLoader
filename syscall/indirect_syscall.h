@@ -59,7 +59,7 @@ static void *BuildIndirectStub(DWORD ssn, void *syscall_addr) {
     pNtProtectVirtualMemory = (void *)myGetProcAddress(ntdll, ntprotectvm);
 
     PVOID  base = NULL;
-    SIZE_T size = 14;
+    SIZE_T size = 22;
 
     pNtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
