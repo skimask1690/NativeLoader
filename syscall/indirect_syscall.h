@@ -8,7 +8,7 @@
     do {                             \
         g_ssn     = ResolveSSN(name); \
         g_syscall = GetSyscallAddr(name); \
-        g_stub    = BuildIndirectStub(g_ssn, g_syscall); \
+        g_stub    = BuildIndirectSyscallStub(g_ssn, g_syscall); \
     } while (0)
 
 #define SYSCALL_CALL(type) ((type)g_stub)
@@ -48,7 +48,7 @@ static void *GetSyscallAddr(const char *name) {
     return NULL;
 }
 
-static void *BuildIndirectStub(DWORD ssn, void *syscall_addr) {
+static void *BuildIndirectSyscallStub(DWORD ssn, void *syscall_addr) {
     NTSTATUS (NTAPI *pNtAllocateVirtualMemory)(HANDLE, PVOID *, ULONG_PTR, PSIZE_T, ULONG, ULONG);
     NTSTATUS (NTAPI *pNtProtectVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG, PULONG);
 
@@ -74,8 +74,8 @@ static void *BuildIndirectStub(DWORD ssn, void *syscall_addr) {
     *(DWORD *)(p + 10) = 0x00000000;
     *(void **)(p + 14) = syscall_addr;
 
-    ULONG old;
-    pNtProtectVirtualMemory((HANDLE)-1, &base, &size,PAGE_EXECUTE_READ, &old);
+    ULONG oldProt;
+    pNtProtectVirtualMemory((HANDLE)-1, &base, &size,PAGE_EXECUTE_READ, &oldProt);
 
     return base;
 }
