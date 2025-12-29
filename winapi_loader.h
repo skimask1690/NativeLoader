@@ -28,6 +28,14 @@ static void xor_decode(char* str) {
         str[i] ^= key;
 }
 
+static void xor_decode_w(wchar_t* str) {
+    size_t len = 0;
+    while (str[len]) len++;
+    wchar_t key = XOR_KEY(len);
+    for (size_t i = 0; i < len; i++)
+        str[i] ^= key;
+}
+
 #endif // XOR
 
 // -------------------- PEB structs --------------------
@@ -99,6 +107,7 @@ static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
     unsigned char stackbuf[21];
 
     char* ntdll_dll = (char*)&stackbuf[0]; // 10 bytes
+	char* ldrloaddll = (char*)&stackbuf[10]; // 11 bytes
 #ifdef XOR
     ntdll_dll[0] = 'n'^XOR_KEY(9); ntdll_dll[1] = 't'^XOR_KEY(9);
     ntdll_dll[2] = 'd'^XOR_KEY(9); ntdll_dll[3] = 'l'^XOR_KEY(9);
@@ -106,16 +115,8 @@ static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
     ntdll_dll[6] = 'd'^XOR_KEY(9); ntdll_dll[7] = 'l'^XOR_KEY(9);
     ntdll_dll[8] = 'l'^XOR_KEY(9); ntdll_dll[9] = 0;
     xor_decode(ntdll_dll);
-#else
-    ntdll_dll[0] = 'n'; ntdll_dll[1] = 't'; ntdll_dll[2] = 'd';
-    ntdll_dll[3] = 'l'; ntdll_dll[4] = 'l'; ntdll_dll[5] = '.';
-    ntdll_dll[6] = 'd'; ntdll_dll[7] = 'l'; ntdll_dll[8] = 'l';
-    ntdll_dll[9] = 0;
-#endif
-
-    char* ldrloaddll = (char*)&stackbuf[10]; // 11 bytes
-#ifdef XOR
-    ldrloaddll[0] = 'L'^XOR_KEY(10); ldrloaddll[1] = 'd'^XOR_KEY(10);
+	
+	ldrloaddll[0] = 'L'^XOR_KEY(10); ldrloaddll[1] = 'd'^XOR_KEY(10);
     ldrloaddll[2] = 'r'^XOR_KEY(10); ldrloaddll[3] = 'L'^XOR_KEY(10);
     ldrloaddll[4] = 'o'^XOR_KEY(10); ldrloaddll[5] = 'a'^XOR_KEY(10);
     ldrloaddll[6] = 'd'^XOR_KEY(10); ldrloaddll[7] = 'D'^XOR_KEY(10);
@@ -123,6 +124,11 @@ static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
     ldrloaddll[10] = 0;
     xor_decode(ldrloaddll);
 #else
+    ntdll_dll[0] = 'n'; ntdll_dll[1] = 't'; ntdll_dll[2] = 'd';
+    ntdll_dll[3] = 'l'; ntdll_dll[4] = 'l'; ntdll_dll[5] = '.';
+    ntdll_dll[6] = 'd'; ntdll_dll[7] = 'l'; ntdll_dll[8] = 'l';
+    ntdll_dll[9] = 0;
+	
     ldrloaddll[0] = 'L'; ldrloaddll[1] = 'd'; ldrloaddll[2] = 'r';
     ldrloaddll[3] = 'L'; ldrloaddll[4] = 'o'; ldrloaddll[5] = 'a';
     ldrloaddll[6] = 'd'; ldrloaddll[7] = 'D'; ldrloaddll[8] = 'l';
