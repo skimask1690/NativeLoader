@@ -14,14 +14,15 @@
 #define SYSCALL_CALL(type) ((type)g_stub)
 
 /* ================= Strings ================= */
-STRINGA(ntdll_dll,  "ntdll.dll");
+STRINGA(ntdll_dll, "ntdll.dll");
 STRINGW(ntdll_path, "\\SystemRoot\\System32\\ntdll.dll");
 
-STRINGA(ntallocvm,  "NtAllocateVirtualMemory");
-STRINGA(ntprotectvm,"NtProtectVirtualMemory");
-STRINGA(ntcreatefile,"NtCreateFile");
-STRINGA(ntcreatesection,"NtCreateSection");
-STRINGA(ntmapview,  "NtMapViewOfSection");
+STRINGA(ntcreatefile, "NtCreateFile");
+STRINGA(ntcreatesection, "NtCreateSection");
+STRINGA(ntmapview, "NtMapViewOfSection");
+STRINGA(ntclose, "NtClose");
+STRINGA(ntallocvm, "NtAllocateVirtualMemory");
+STRINGA(ntprotectvm, "NtProtectVirtualMemory");
 
 /* ================= Globals ================= */
 static DWORD g_ssn;
