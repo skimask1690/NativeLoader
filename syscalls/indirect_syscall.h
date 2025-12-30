@@ -24,8 +24,6 @@ STRINGA(ntmapview, "NtMapViewOfSection");
 STRINGA(ntclose, "NtClose");
 STRINGA(ntallocvm, "NtAllocateVirtualMemory");
 STRINGA(ntprotectvm, "NtProtectVirtualMemory");
-STRINGA(ntunmapview, "NtUnmapViewOfSection");
-STRINGA(ntfreevm, "NtFreeVirtualMemory");
 
 /* ================= Globals ================= */
 static void *g_stub;
