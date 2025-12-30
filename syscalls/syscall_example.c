@@ -1,4 +1,4 @@
-#include "indirect_syscall.h"
+#include "direct_syscall.h"
 //#include "indirect_syscall.h"
 
 /* ================= Function pointer types ================= */
@@ -46,6 +46,6 @@ void _start(void) {
 
     // NtUnmapViewOfSection
     SYSCALL_PREPARE(&ntdll_ctx, ntunmapviewa);
-    NtUnmapViewOfSection_t pNtUnmapView = SYSCALL_CALL(NtUnmapViewOfSection_t);
-    pNtUnmapView((HANDLE)-1, ntdll_base);
+    NtUnmapViewOfSection_t pNtUnmapViewOfSection = SYSCALL_CALL(NtUnmapViewOfSection_t);
+    pNtUnmapViewOfSection((HANDLE)-1, ntdll_base);
 }
