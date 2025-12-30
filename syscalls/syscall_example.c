@@ -1,4 +1,4 @@
-#include "direct_syscall.h"
+#include "indirect_syscall.h"
 //#include "indirect_syscall.h"
 
 /* ================= Function pointer types ================= */
@@ -17,34 +17,35 @@ STRINGW(filepath, "\\??\\C:\\temp\\test.txt")
 /* ================= Entry point ================= */
 __attribute__((section(".text.start")))
 void _start(void) {
-    SYSCALL_PREPARE(ntcreatefilea);
+    // Map NTDLL once
+    NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk();
+    PVOID ntdll_base = ntdll_ctx.base;
+
+    // NtCreateFile
+    SYSCALL_PREPARE(&ntdll_ctx, ntcreatefilea);
     NtCreateFile_t pNtCreateFile = SYSCALL_CALL(NtCreateFile_t);
 
     HANDLE hFile = NULL;
     IO_STATUS_BLOCK iosb = {0};
-
-    UNICODE_STRING us;
-    InitUnicodeString(&us, filepath);
-
-    OBJECT_ATTRIBUTES oa;
-    InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
+    UNICODE_STRING us; InitUnicodeString(&us, filepath);
+    OBJECT_ATTRIBUTES oa; InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
     pNtCreateFile(&hFile, GENERIC_WRITE, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN_IF, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     // NtClose
-    SYSCALL_PREPARE(ntclosea);
+    SYSCALL_PREPARE(&ntdll_ctx, ntclosea);
     NtClose_t pNtClose = SYSCALL_CALL(NtClose_t);
     pNtClose(hFile);
 
-    // NtUnmapViewOfSection
-    SYSCALL_PREPARE(ntunmapviewa);
-    NtUnmapViewOfSection_t pNtUnmapView = SYSCALL_CALL(NtUnmapViewOfSection_t);
-    pNtUnmapView((HANDLE)-1, MapNtdllFromDisk().base);
-
     // NtFreeVirtualMemory
-    SYSCALL_PREPARE(ntfreevma);
+    SYSCALL_PREPARE(&ntdll_ctx, ntfreevma);
     NtFreeVirtualMemory_t pNtFreeVirtualMemory = SYSCALL_CALL(NtFreeVirtualMemory_t);
+
     SIZE_T size = 0;
-    PVOID base = MapNtdllFromDisk().base;
-    pNtFreeVirtualMemory((HANDLE)-1, &base, &size, MEM_RELEASE);
+    pNtFreeVirtualMemory((HANDLE)-1, &ntdll_base, &size, MEM_RELEASE);
+
+    // NtUnmapViewOfSection
+    SYSCALL_PREPARE(&ntdll_ctx, ntunmapviewa);
+    NtUnmapViewOfSection_t pNtUnmapView = SYSCALL_CALL(NtUnmapViewOfSection_t);
+    pNtUnmapView((HANDLE)-1, ntdll_base);
 }
