@@ -4,10 +4,9 @@
 /* ================= Function pointer types ================= */
 typedef NTSTATUS (NTAPI *NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
 typedef NTSTATUS (NTAPI *NtClose_t)(HANDLE);
-typedef NTSTATUS (NTAPI *NtUnmapViewOfSection_t)(HANDLE, PVOID);
 
 /* ================= Strings ================= */
-STRINGW(filepath, "\\??\\C:\\temp\\test.txt");
+STRINGW(filepath, "\\??\\C:\\test\\test.txt");
 
 /* ================= Entry point ================= */
 __attribute__((section(".text.start")))
@@ -47,10 +46,7 @@ void _start(void)
     FreeSyscallStub(ctx, NtClose);
 
     // Unmap disk-backed ntdll
-    SYSCALL_PREPARE(ctx, ntunmapviewofsection);
-    NtUnmapViewOfSection_t NtUnmapViewOfSection = SYSCALL_CALL(ctx, NtUnmapViewOfSection_t);
-    NtUnmapViewOfSection((HANDLE)-1, ntdll_ctx.base);
-    FreeSyscallStub(ctx, NtUnmapViewOfSection);
+    UNLOAD_NTDLL(ctx);
 
     // Destroy syscall context
     DestroySyscallContext(ctx);
