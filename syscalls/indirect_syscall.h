@@ -17,6 +17,8 @@ STRINGA(ntprotectvirtualmemory, "NtProtectVirtualMemory");
 STRINGA(ntfreevirtualmemory, "NtFreeVirtualMemory");
 
 /* ================= Types ================= */
+typedef NTSTATUS (NTAPI *NtUnmapViewOfSection_t)(HANDLE, PVOID);
+
 typedef struct _NTDLL_DISK_CTX {
     PVOID  base;
     SIZE_T size;
@@ -59,6 +61,14 @@ void *          ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name);
     } while (0)
 
 #define SYSCALL_CALL(ctx, type) ((type)BuildIndirectSyscall(ctx, ssn, sysaddr))
+
+#define UNLOAD_NTDLL(ctx) \
+    do { \
+        SYSCALL_PREPARE(ctx, ntunmapviewofsection); \
+        NtUnmapViewOfSection_t NtUnmapViewOfSection = SYSCALL_CALL(ctx, NtUnmapViewOfSection_t); \
+        NtUnmapViewOfSection((HANDLE)-1, ntdll_ctx.base); \
+        FreeSyscallStub(ctx, NtUnmapViewOfSection); \
+    } while(0)
 
 /* ================= Implementation ================= */
 SYSCALL_CTX *CreateSyscallContext(void) {
