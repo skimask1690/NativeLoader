@@ -4,41 +4,15 @@
 #include "winapi_loader.h"
 
 /* ================= Macros ================= */
-#define SYSCALL_PREPARE(name)                                   \
-    void *g_stub = NULL;                                        \
-    void *ntdll_view = NULL;                                    \
-    do {                                                        \
-        NTDLL_DISK_CTX ctx = MapNtdllFromDisk();                \
-        ntdll_view = ctx.base;                                  \
-        g_ssn     = ResolveSSN(&ctx, name);                     \
-        g_syscall = ResolveSyscall(&ctx, name);                 \
+#define SYSCALL_PREPARE(name)                          \
+    do {                                              \
+        NTDLL_DISK_CTX ctx = MapNtdllFromDisk();      \
+        g_ssn     = ResolveSSN(&ctx, name);           \
+        g_syscall = ResolveSyscall(&ctx, name);       \
         g_stub    = BuildIndirectSyscallStub(g_ssn, g_syscall); \
     } while (0)
 
 #define SYSCALL_CALL(type) ((type)g_stub)
-
-#define STUB_RELEASE()                                         \
-    do {                                                       \
-        SIZE_T size = 22;                                      \
-        SYSCALL_PREPARE(ntfreevm);                             \
-        SYSCALL_CALL(NtFreeVirtualMemory_t)(                   \
-            (HANDLE)-1,                                        \
-            &g_stub,                                           \
-            &size,                                             \
-            MEM_RELEASE                                        \
-        );                                                     \
-        g_stub = NULL;                                         \
-    } while (0)
-
-#define NTDLL_RELEASE()                                        \
-    do {                                                       \
-        SYSCALL_PREPARE(ntunmapview);                          \
-        SYSCALL_CALL(NtUnmapViewOfSection_t)(                  \
-            (HANDLE)-1,                                        \
-            ntdll_view                                         \
-        );                                                     \
-        ntdll_view = NULL;                                     \
-    } while (0)
 
 /* ================= Strings ================= */
 STRINGA(ntdll_dll, "ntdll.dll");
