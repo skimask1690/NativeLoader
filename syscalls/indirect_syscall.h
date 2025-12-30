@@ -31,9 +31,6 @@ static DWORD g_ssn;
 static void *g_syscall;
 
 /* ================= Types ================= */
-typedef NTSTATUS(NTAPI *NtFreeVirtualMemory_t)(HANDLE, PVOID *, PSIZE_T, ULONG);
-typedef NTSTATUS(NTAPI *NtUnmapViewOfSection_t)(HANDLE, PVOID);
-
 typedef enum _SECTION_INHERIT {
     ViewShare = 1,
     ViewUnmap = 2 
