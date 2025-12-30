@@ -6,31 +6,39 @@
 /* ================= Macros ================= */
 #define SYSCALL_PREPARE(name)                                  \
     void *syscall_ptr = NULL;                                  \
+    void *ntdll_view  = NULL;                                  \
     do {                                                       \
         NTDLL_DISK_CTX ctx = MapNtdllFromDisk();               \
+        ntdll_view = ctx.base;                                 \
         g_ssn     = ResolveSSN(&ctx, name);                    \
         g_syscall = ResolveSyscall(&ctx, name);                \
         g_stub    = BuildIndirectSyscallStub(g_ssn, g_syscall); \
-        syscall_ptr = g_stub;                                   \
+        syscall_ptr = g_stub;                                  \
     } while(0)
 
-// Call the syscall and free both stub memory and section
 #define SYSCALL_CALL(type, ...)                                              \
     ({                                                                       \
         NTSTATUS _ret = ((type)g_stub)(__VA_ARGS__);                         \
         if (syscall_ptr) {                                                   \
-            /* Free the stub memory */                                       \
-            NTSTATUS (NTAPI *pNtFreeVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG) = \
-                (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntfreevm); \
-                PVOID base = syscall_ptr;                                     \
-                SIZE_T size = 22;                                             \
-                pNtFreeVirtualMemory((HANDLE)-1, &base, &size, MEM_RELEASE); \
-                                                                               \
-            /* Unmap the original mapped section */                           \
-            NTSTATUS (NTAPI *pNtUnmapViewOfSection)(HANDLE, PVOID) =         \
-                (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntunmapview); \
-            pNtUnmapViewOfSection((HANDLE)-1, syscall_ptr);                  \
-                                                                               \
+            NTSTATUS (NTAPI *pNtFreeVirtualMemory)(                          \
+                HANDLE, PVOID *, PSIZE_T, ULONG) =                           \
+                (void *)myGetProcAddress(                                    \
+                    myGetModuleHandleA(ntdll_dll), ntfreevm);                \
+                                                                             \
+            PVOID base = syscall_ptr;                                        \
+            SIZE_T size = 22;                                                \
+            pNtFreeVirtualMemory((HANDLE)-1, &base, &size, MEM_RELEASE);     \
+                                                                             \
+            NTSTATUS (NTAPI *pNtUnmapViewOfSection)(                          \
+                HANDLE, PVOID) =                                             \
+                (void *)myGetProcAddress(                                    \
+                    myGetModuleHandleA(ntdll_dll), ntunmapview);             \
+                                                                             \
+            if (ntdll_view) {                                                 \
+                pNtUnmapViewOfSection((HANDLE)-1, ntdll_view);               \
+                ntdll_view = NULL;                                           \
+            }                                                                \
+                                                                             \
             syscall_ptr = NULL;                                              \
         }                                                                     \
         _ret;                                                                \
