@@ -3,17 +3,6 @@
 
 #include "winapi_loader.h"
 
-/* ================= Types ================= */
-typedef struct _NTDLL_DISK_CTX {
-    void  *base;
-    SIZE_T size;
-} NTDLL_DISK_CTX;
-
-typedef enum _SECTION_INHERIT {
-    ViewShare = 1,
-    ViewUnmap = 2
-} SECTION_INHERIT;
-
 /* ================= Strings ================= */
 STRINGA(ntdll_dll, "ntdll.dll");
 STRINGW(ntdll_path, "\\SystemRoot\\System32\\ntdll.dll");
@@ -24,6 +13,17 @@ STRINGA(ntmapviewofsection, "NtMapViewOfSection");
 STRINGA(ntclose, "NtClose");
 STRINGA(ntallocatevirtualmemory, "NtAllocateVirtualMemory");
 STRINGA(ntprotectvirtualmemory, "NtProtectVirtualMemory");
+
+/* ================= Types ================= */
+typedef struct _NTDLL_DISK_CTX {
+    void  *base;
+    SIZE_T size;
+} NTDLL_DISK_CTX;
+
+typedef enum _SECTION_INHERIT {
+    ViewShare = 1,
+    ViewUnmap = 2
+} SECTION_INHERIT;
 
 /* ================= Macros ================= */
 #define LOAD_NTDLL \
