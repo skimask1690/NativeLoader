@@ -125,7 +125,7 @@ static void *BuildDirectSyscallStub(NTDLL_DISK_CTX *ctx, DWORD ssn) {
     NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
     BYTE *p = (BYTE *)base;
-    p[0] = 0x4C; p[1] = 0x8B; p[2] = 0xD1; // mov r10, rcx
+    p[0] = 0x4C; p[1] = 0x8B; p[2] = 0xD1;  // mov r10, rcx
     p[3] = 0xB8; *(DWORD *)(p + 4) = ssn;   // mov eax, ssn
     p[8] = 0x0F; p[9] = 0x05;               // syscall
     p[10] = 0xC3;                           // ret
