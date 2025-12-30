@@ -1,4 +1,5 @@
 #include "direct_syscall.h"
+// #include "indirect_syscall.h"
 
 /* ================= Function pointer types ================= */
 typedef NTSTATUS (NTAPI *NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
@@ -7,11 +8,9 @@ typedef NTSTATUS (NTAPI *NtUnmapViewOfSection_t)(HANDLE, PVOID);
 typedef NTSTATUS (NTAPI *NtFreeVirtualMemory_t)(HANDLE, PVOID *, PSIZE_T, ULONG);
 
 /* ================= Strings ================= */
-STRINGA(ntcreatefilea, "NtCreateFile");
-STRINGA(ntclosea, "NtClose");
-STRINGA(ntunmapviewa, "NtUnmapViewOfSection");
-STRINGA(ntfreevma, "NtFreeVirtualMemory");
 STRINGW(filepath, "\\??\\C:\\temp\\test.txt");
+STRINGA(ntunmapviewofsection, "NtUnmapViewOfSection");
+STRINGA(ntfreevirtualmemory, "NtFreeVirtualMemory");
 
 /* ================= Entry point ================= */
 __attribute__((section(".text.start")))
@@ -20,7 +19,7 @@ void _start(void) {
     LOAD_NTDLL;
 
     // NtCreateFile
-    SYSCALL_PREPARE(&ntdll_ctx, ntcreatefilea);
+    SYSCALL_PREPARE(ntcreatefile);
     NtCreateFile_t pNtCreateFile = SYSCALL_CALL(NtCreateFile_t);
 
     HANDLE hFile = NULL;
@@ -31,17 +30,17 @@ void _start(void) {
     pNtCreateFile(&hFile, GENERIC_WRITE, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN_IF, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     // NtClose
-    SYSCALL_PREPARE(&ntdll_ctx, ntclosea);
+    SYSCALL_PREPARE(ntclose);
     NtClose_t pNtClose = SYSCALL_CALL(NtClose_t);
     pNtClose(hFile);
 
     // NtUnmapViewOfSection
-    SYSCALL_PREPARE(&ntdll_ctx, ntunmapviewa);
+    SYSCALL_PREPARE(ntunmapviewofsection);
     NtUnmapViewOfSection_t pNtUnmapViewOfSection = SYSCALL_CALL(NtUnmapViewOfSection_t);
     pNtUnmapViewOfSection((HANDLE)-1, ntdll_base);
 
     // NtFreeVirtualMemory
-    SYSCALL_PREPARE(&ntdll_ctx, ntfreevma);
+    SYSCALL_PREPARE(ntfreevirtualmemory);
     NtFreeVirtualMemory_t pNtFreeVirtualMemory = SYSCALL_CALL(NtFreeVirtualMemory_t);
 
     SIZE_T size = 0;
