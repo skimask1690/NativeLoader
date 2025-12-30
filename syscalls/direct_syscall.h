@@ -23,8 +23,6 @@ STRINGA(ntmapview, "NtMapViewOfSection");
 STRINGA(ntclose, "NtClose");
 STRINGA(ntallocvm, "NtAllocateVirtualMemory");
 STRINGA(ntprotectvm, "NtProtectVirtualMemory");
-STRINGA(ntunmapview, "NtUnmapViewOfSection");
-STRINGA(ntfreevm, "NtFreeVirtualMemory");
 
 /* ================= Globals ================= */
 static DWORD g_ssn;
