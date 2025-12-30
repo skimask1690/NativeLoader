@@ -3,9 +3,15 @@
 
 /* ================= Function pointer types ================= */
 typedef NTSTATUS (NTAPI *NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+typedef NTSTATUS (NTAPI *NtClose_t)(HANDLE);
+typedef NTSTATUS (NTAPI *NtUnmapViewOfSection_t)(HANDLE, PVOID);
+typedef NTSTATUS (NTAPI *NtFreeVirtualMemory_t)(HANDLE, PVOID *, PSIZE_T, ULONG);
 
 /* ================= Strings ================= */
 STRINGA(ntcreatefilea, "NtCreateFile");
+STRINGA(ntclosea, "NtClose");
+STRINGA(ntunmapviewa, "NtUnmapViewOfSection");
+STRINGA(ntfreevma, "NtFreeVirtualMemory");
 STRINGW(filepath, "\\??\\C:\\temp\\test.txt")
 
 /* ================= Entry point ================= */
@@ -24,4 +30,21 @@ void _start(void) {
     InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
     pNtCreateFile(&hFile, GENERIC_WRITE, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN_IF, FILE_NON_DIRECTORY_FILE, NULL, 0);
+
+    // NtClose
+    SYSCALL_PREPARE(ntclosea);
+    NtClose_t pNtClose = SYSCALL_CALL(NtClose_t);
+    pNtClose(hFile);
+
+    // NtUnmapViewOfSection
+    SYSCALL_PREPARE(ntunmapviewa);
+    NtUnmapViewOfSection_t pNtUnmapView = SYSCALL_CALL(NtUnmapViewOfSection_t);
+    pNtUnmapView((HANDLE)-1, MapNtdllFromDisk().base);
+
+    // NtFreeVirtualMemory
+    SYSCALL_PREPARE(ntfreevma);
+    NtFreeVirtualMemory_t pNtFreeVirtualMemory = SYSCALL_CALL(NtFreeVirtualMemory_t);
+    SIZE_T size = 0;
+    PVOID base = MapNtdllFromDisk().base;
+    pNtFreeVirtualMemory((HANDLE)-1, &base, &size, MEM_RELEASE);
 }
