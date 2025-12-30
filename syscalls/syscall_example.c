@@ -30,9 +30,7 @@ void _start(void) {
     UNICODE_STRING us; InitUnicodeString(&us, filepath);
     OBJECT_ATTRIBUTES oa; InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
-    pNtCreateFile(&hFile, GENERIC_WRITE, &oa, &iosb, NULL,
-                  FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                  FILE_OPEN_IF, FILE_NON_DIRECTORY_FILE, NULL, 0);
+    pNtCreateFile(&hFile, GENERIC_WRITE, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN_IF, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     // NtClose
     SYSCALL_PREPARE(&ntdll_ctx, ntclosea);
