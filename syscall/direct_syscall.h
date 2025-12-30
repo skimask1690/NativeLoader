@@ -12,12 +12,12 @@
 
 #define SYSCALL_CALL(type) ((type)g_stub)
 
-/* ================= strings ================= */
+/* ================= Strings ================= */
 STRINGA(ntdll_dll,  "ntdll.dll");
 STRINGA(ntallocvm,  "NtAllocateVirtualMemory");
 STRINGA(ntprotectvm,"NtProtectVirtualMemory");
 
-/* ================= globals ================= */
+/* ================= Globals ================= */
 static DWORD g_ssn;
 static void *g_stub;
 
@@ -37,7 +37,7 @@ static DWORD ResolveSSN(const char *name) {
     return 0xFFFFFFFF;
 }
 
-/* ================= Direct syscall core ================= */
+/* ================= Direct syscall stub ================= */
 static void *BuildDirectSyscallStub(DWORD ssn) {
     NTSTATUS (NTAPI *pNtAllocateVirtualMemory)(HANDLE, PVOID *, ULONG_PTR, PSIZE_T, ULONG, ULONG);
     NTSTATUS (NTAPI *pNtProtectVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG, PULONG);
@@ -54,14 +54,10 @@ static void *BuildDirectSyscallStub(DWORD ssn) {
 
     unsigned char *p = (unsigned char *)base;
 
-    p[0]  = 0x4C; // mov r10, rcx
-    p[1]  = 0x8B;
-    p[2]  = 0xD1;
-    p[3]  = 0xB8; // mov eax, ssn
-    *(DWORD *)(p + 4) = ssn;
-    p[8]  = 0x0F; // syscall
-    p[9]  = 0x05;
-    p[10] = 0xC3; // ret 
+    p[0]  = 0x4C; p[1]  = 0x8B; p[2]  = 0xD1;  // mov r10, rcx
+    p[3]  = 0xB8; *(DWORD *)(p + 4) = ssn;     // mov eax, ssn
+    p[8]  = 0x0F; p[9]  = 0x05;                // syscall
+    p[10] = 0xC3;                              // ret
 
     ULONG oldProt;
     pNtProtectVirtualMemory((HANDLE)-1, &base, &size, PAGE_EXECUTE_READ, &oldProt);
