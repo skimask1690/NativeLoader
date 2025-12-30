@@ -21,6 +21,7 @@ STRINGW(ntdll_path, "\\SystemRoot\\System32\\ntdll.dll");
 STRINGA(ntcreatefile, "NtCreateFile");
 STRINGA(ntcreatesection, "NtCreateSection");
 STRINGA(ntmapview, "NtMapViewOfSection");
+STRINGA(ntclose, "NtClose");
 STRINGA(ntallocvm, "NtAllocateVirtualMemory");
 STRINGA(ntprotectvm, "NtProtectVirtualMemory");
 
@@ -47,11 +48,13 @@ static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     NTSTATUS (NTAPI *NtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
     NTSTATUS (NTAPI *NtCreateSection)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE);
     NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID *, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG);
+	NTSTATUS (NTAPI *NtClose)(HANDLE);
 
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
     NtCreateFile = (void *)myGetProcAddress(ntdll, ntcreatefile);
     NtCreateSection = (void *)myGetProcAddress(ntdll, ntcreatesection);
     NtMapViewOfSection = (void *)myGetProcAddress(ntdll, ntmapview);
+    NtClose = (void *)myGetProcAddress(ntdll, ntclose);
 
     UNICODE_STRING us;
     InitUnicodeString(&us, ntdll_path);
@@ -70,6 +73,9 @@ static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     SIZE_T size = 0;
     NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0, NULL, &size, ViewShare, 0, PAGE_READONLY);
 
+    NtClose(hSection);
+    NtClose(hFile);
+
     IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER *)base;
     IMAGE_NT_HEADERS *nt  = (IMAGE_NT_HEADERS *)((BYTE *)base + dos->e_lfanew);
 
@@ -84,7 +90,6 @@ static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
 
     ctx.base = base;
     ctx.size = min_size;
-
     return ctx;
 }
 
