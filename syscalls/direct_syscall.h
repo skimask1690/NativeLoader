@@ -89,6 +89,7 @@ void DestroySyscallContext(SYSCALL_CTX *ctx) {
     NtFreeVirtualMemory((HANDLE)-1, &p, &s, MEM_RELEASE);
 }
 
+/* ================= Disk-backed NTDLL ================= */
 static BYTE *GetExport(NTDLL_DISK_CTX *ctx, const char *name) {
     BYTE *base = (BYTE*)ctx->base;
     IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER*)base;
@@ -152,6 +153,7 @@ NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     return ctx;
 }
 
+/* ================= SSN resolution ================= */
 DWORD ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name) {
     BYTE *f = GetExport(ctx, name);
 
@@ -165,6 +167,7 @@ DWORD ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name) {
     return 0xFFFFFFFF;
 }
 
+/* ================= Direct syscall stub ================= */
 void *BuildDirectSyscall(SYSCALL_CTX *ctx, DWORD ssn) {
     NTSTATUS (NTAPI *NtAllocateVirtualMemory)(HANDLE, PVOID*, ULONG_PTR, PSIZE_T, ULONG, ULONG) = (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntallocatevirtualmemory);
     NTSTATUS (NTAPI *NtProtectVirtualMemory)(HANDLE, PVOID*, PSIZE_T, ULONG, PULONG) = (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntprotectvirtualmemory);
