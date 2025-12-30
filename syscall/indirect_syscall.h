@@ -23,7 +23,7 @@ static DWORD g_ssn;
 static void *g_stub;
 static void *g_syscall;
 
-/* ================= SSN Resolver ================= */
+/* ================= SSN resolver ================= */
 static DWORD ResolveSSN(const char *name) {
     BYTE *f = (BYTE *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), name);
 
@@ -37,7 +37,7 @@ static DWORD ResolveSSN(const char *name) {
     return 0xFFFFFFFF;
 }
 
-/* ================= Indirect syscall core ================= */
+/* ================= Indirect syscall stub ================= */
 static void *GetSyscallAddr(const char *name) {
     BYTE *f = (BYTE *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), name);
 
@@ -64,13 +64,10 @@ static void *BuildIndirectSyscallStub(DWORD ssn, void *syscall_addr) {
 
     BYTE *p = (BYTE *)base;
 
-    p[0]  = 0x4C; // mov r10, rcx
-    p[1]  = 0x8B;
-    p[2]  = 0xD1;
-    p[3]  = 0xB8; // mov eax, ssn
+    p[0]  = 0x4C; p[1] = 0x8B; // mov r10, rcx
+    p[2]  = 0xD1; p[3] = 0xB8; // mov eax, ssn
     *(DWORD *)(p + 4) = ssn;
-    p[8]  = 0xFF; // jmp [rip+0]
-    p[9]  = 0x25;
+    p[8]  = 0xFF; p[9] = 0x25; // jmp [rip+0]
     *(DWORD *)(p + 10) = 0x00000000;
     *(void **)(p + 14) = syscall_addr;
 
