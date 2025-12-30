@@ -1,10 +1,11 @@
 #include "direct_syscall.h"
+// #include "indirect_syscall.h"
 
 /* ================= Function pointer types ================= */
 typedef NTSTATUS (NTAPI *NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
 
 /* ================= Strings ================= */
-STRINGW(filepath, "\\??\\C:\\Users\\robro\\OneDrive\\Desktop\\test.txt")
+STRINGW(filepath, "\\??\\C:\\temp\\test.txt")
 STRINGA(ntcreatefilea, "NtCreateFile");
 
 /* ================= Entry point ================= */
