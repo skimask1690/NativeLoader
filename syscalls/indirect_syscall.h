@@ -30,7 +30,6 @@
         g_stub = NULL;                                         \
     } while (0)
 
-
 #define NTDLL_RELEASE()                                        \
     do {                                                       \
         SYSCALL_PREPARE(ntunmapview);                          \
