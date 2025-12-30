@@ -17,7 +17,7 @@ STRINGW(filepath, "\\??\\C:\\temp\\test.txt")
 /* ================= Entry point ================= */
 __attribute__((section(".text.start")))
 void _start(void) {
-    // Map NTDLL once
+    // Map disk-backed NTDLL
     NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk();
     PVOID ntdll_base = ntdll_ctx.base;
 
