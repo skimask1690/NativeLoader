@@ -136,7 +136,7 @@ static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
     return hModule;
 }
 
-// -------------------- myLoadLibraryA --------------------
+// -------------------- Helpers --------------------
 static void AsciiToWideChar(const char* ascii, UNICODE_STRING* ustr, wchar_t* buf, SIZE_T bufCount) {
     SIZE_T i = 0;
     while (ascii[i] && i < bufCount - 1) {
@@ -150,6 +150,16 @@ static void AsciiToWideChar(const char* ascii, UNICODE_STRING* ustr, wchar_t* bu
     ustr->Buffer = buf;
 }
 
+static void InitUnicodeString(UNICODE_STRING* ustr, const wchar_t* wstr) {
+    size_t len = 0;
+    while (wstr[len]) len++;
+
+    ustr->Buffer        = (PWSTR)wstr;
+    ustr->Length        = (USHORT)(len * sizeof(WCHAR));
+    ustr->MaximumLength = (USHORT)((len + 1) * sizeof(WCHAR));
+}
+
+// -------------------- myLoadLibraryA --------------------
 static HMODULE myLoadLibraryA(const char* dllNameA) {
     size_t len = 0;
     while (dllNameA[len]) len++;
@@ -161,15 +171,6 @@ static HMODULE myLoadLibraryA(const char* dllNameA) {
 }
 
 // -------------------- myLoadLibraryW --------------------
-static void InitUnicodeString(UNICODE_STRING* ustr, const wchar_t* wstr) {
-    size_t len = 0;
-    while (wstr[len]) len++;
-
-    ustr->Buffer        = (PWSTR)wstr;
-    ustr->Length        = (USHORT)(len * sizeof(WCHAR));
-    ustr->MaximumLength = (USHORT)((len + 1) * sizeof(WCHAR));
-}
-
 static HMODULE myLoadLibraryW(const wchar_t* dllNameW) {
     UNICODE_STRING ustr;
     InitUnicodeString(&ustr, dllNameW);
