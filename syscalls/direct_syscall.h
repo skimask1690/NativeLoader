@@ -12,6 +12,10 @@
 
 #define SYSCALL_CALL(type) ((type)g_stub)
 
+#define LOAD_NTDLL \
+    NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk(); \
+    PVOID ntdll_base = ntdll_ctx.base;
+
 /* ================= Strings ================= */
 STRINGA(ntdll_dll, "ntdll.dll");
 STRINGW(ntdll_path, "\\SystemRoot\\System32\\ntdll.dll");
