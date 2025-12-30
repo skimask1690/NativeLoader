@@ -138,9 +138,9 @@ static void *BuildIndirectSyscallStub(DWORD ssn, void *syscall_addr) {
 
     BYTE *p = (BYTE *)base;
 
-    p[0] = 0x4C; p[1] = 0x8B; p[2] = 0xD1; // mov r10, rcx
-    p[3] = 0xB8; *(DWORD *)(p + 4) = ssn;  // mov eax, ssn
-    p[8] = 0xFF; p[9] = 0x25;              // jmp [rip+0]
+    p[0] = 0x4C; p[1] = 0x8B; p[2] = 0xD1;  // mov r10, rcx
+    p[3] = 0xB8; *(DWORD *)(p + 4) = ssn;   // mov eax, ssn
+    p[8] = 0xFF; p[9] = 0x25;               // jmp [rip+0]
     *(DWORD *)(p + 10) = 0;
     *(void **)(p + 14) = syscall_addr;
 
