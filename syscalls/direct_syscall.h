@@ -43,7 +43,17 @@ STRINGA(ntprotectvirtualmemory, "NtProtectVirtualMemory");
 /* ================= Disk-backed NTDLL ================= */
 static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     NTDLL_DISK_CTX ctx = {0};
+
+    NTSTATUS (NTAPI *NtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+    NTSTATUS (NTAPI *NtCreateSection)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE);
+    NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID *, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG);
+    NTSTATUS (NTAPI *NtClose)(HANDLE);
+
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
+    NtCreateFile = (void *)myGetProcAddress(ntdll, ntcreatefile);
+    NtCreateSection = (void *)myGetProcAddress(ntdll, ntcreatesection);
+    NtMapViewOfSection = (void *)myGetProcAddress(ntdll, ntmapviewofsection);
+    NtClose = (void *)myGetProcAddress(ntdll, ntclose);
 
     UNICODE_STRING us;
     InitUnicodeString(&us, ntdll_path);
@@ -53,23 +63,15 @@ static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
 
     HANDLE hFile;
     IO_STATUS_BLOCK iosb;
-
-    NTSTATUS (NTAPI *NtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG) =
-        (void *)myGetProcAddress(ntdll, ntcreatefile);
     NtCreateFile(&hFile, FILE_GENERIC_READ, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     HANDLE hSection;
-    NTSTATUS (NTAPI *NtCreateSection)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE) =
-        (void *)myGetProcAddress(ntdll, ntcreatesection);
     NtCreateSection(&hSection, SECTION_MAP_READ, NULL, NULL, PAGE_READONLY, SEC_IMAGE, hFile);
 
     PVOID base = NULL;
     SIZE_T size = 0;
-    NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID *, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG) =
-        (void *)myGetProcAddress(ntdll, ntmapviewofsection);
     NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0, NULL, &size, ViewShare, 0, PAGE_READONLY);
 
-    NTSTATUS (NTAPI *NtClose)(HANDLE) = (void *)myGetProcAddress(ntdll, ntclose);
     NtClose(hSection);
     NtClose(hFile);
 
