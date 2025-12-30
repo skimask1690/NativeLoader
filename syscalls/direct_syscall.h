@@ -1,7 +1,5 @@
-#ifndef DIRECT_SYSCALL_H
-#define DIRECT_SYSCALL_H
-#ifndef INDIRECT_SYSCALL_H
-#define INDIRECT_SYSCALL_H
+#ifndef SYSCALL_H
+#define SYSCALL_H
 
 #include "winapi_loader.h"
 
@@ -159,5 +157,4 @@ static void *BuildDirectSyscallStub(NTDLL_DISK_CTX *ctx, DWORD ssn) {
     return base;
 }
 
-#endif // DIRECT_SYSCALL_H
-#endif // INDIRECT_SYSCALL_H
+#endif // SYSCALL_H
