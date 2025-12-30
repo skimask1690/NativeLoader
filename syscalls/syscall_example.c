@@ -1,4 +1,5 @@
 #include "direct_syscall.h"
+// #include "indirect_syscall.h"
 
 /* ================= Function pointer types ================= */
 typedef NTSTATUS (NTAPI *NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
@@ -37,11 +38,4 @@ void _start(void) {
     SYSCALL_PREPARE(ntunmapviewofsection);
     NtUnmapViewOfSection_t pNtUnmapViewOfSection = SYSCALL_CALL(NtUnmapViewOfSection_t);
     pNtUnmapViewOfSection((HANDLE)-1, ntdll_base);
-
-    // NtFreeVirtualMemory
-    SYSCALL_PREPARE(ntfreevirtualmemory);
-    NtFreeVirtualMemory_t pNtFreeVirtualMemory = SYSCALL_CALL(NtFreeVirtualMemory_t);
-
-    SIZE_T size = 0;
-    pNtFreeVirtualMemory((HANDLE)-1, &ntdll_base, &size, MEM_RELEASE);
 }
