@@ -4,12 +4,11 @@
 #include "winapi_loader.h"
 
 /* ================= Macros ================= */
-#define SYSCALL_PREPARE(name)                          \
-    do {                                              \
-        NTDLL_DISK_CTX ctx = MapNtdllFromDisk();      \
-        g_ssn     = ResolveSSN(&ctx, name);           \
-        g_syscall = ResolveSyscall(&ctx, name);       \
-        g_stub    = BuildIndirectSyscallStub(g_ssn, g_syscall); \
+#define SYSCALL_PREPARE(ctx, name)                                  \
+    do {                                                            \
+        g_ssn     = ResolveSSN(ctx, name);                          \
+        g_syscall = ResolveSyscall(ctx, name);                      \
+        g_stub    = BuildIndirectSyscallStub(g_ssn, g_syscall);     \
     } while (0)
 
 #define SYSCALL_CALL(type) ((type)g_stub)
