@@ -1,5 +1,7 @@
 #ifndef INDIRECT_SYSCALL_H
 #define INDIRECT_SYSCALL_H
+#ifndef DIRECT_SYSCALL_H
+#define DIRECT_SYSCALL_H
 
 #include "winapi_loader.h"
 
@@ -151,7 +153,7 @@ static void *BuildIndirectSyscallStub(DWORD ssn, void *syscall_addr) {
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
 
     pNtAllocateVirtualMemory = (void *)myGetProcAddress(ntdll, ntallocvm);
-    pNtProtectVirtualMemory  = (void *)myGetProcAddress(ntdll, ntprotectvm);
+    pNtProtectVirtualMemory = (void *)myGetProcAddress(ntdll, ntprotectvm);
 
     PVOID base = NULL;
     SIZE_T size = 22;
@@ -173,3 +175,4 @@ static void *BuildIndirectSyscallStub(DWORD ssn, void *syscall_addr) {
 }
 
 #endif // INDIRECT_SYSCALL_H
+#endif // DIRECT_SYSCALL_H
