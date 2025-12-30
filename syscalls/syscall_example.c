@@ -1,5 +1,4 @@
 #include "direct_syscall.h"
-//#include "indirect_syscall.h"
 
 /* ================= Function pointer types ================= */
 typedef NTSTATUS (NTAPI *NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
@@ -12,14 +11,13 @@ STRINGA(ntcreatefilea, "NtCreateFile");
 STRINGA(ntclosea, "NtClose");
 STRINGA(ntunmapviewa, "NtUnmapViewOfSection");
 STRINGA(ntfreevma, "NtFreeVirtualMemory");
-STRINGW(filepath, "\\??\\C:\\temp\\test.txt")
+STRINGW(filepath, "\\??\\C:\\temp\\test.txt");
 
 /* ================= Entry point ================= */
 __attribute__((section(".text.start")))
 void _start(void) {
     // Map disk-backed NTDLL
-    NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk();
-    PVOID ntdll_base = ntdll_ctx.base;
+    LOAD_NTDLL;
 
     // NtCreateFile
     SYSCALL_PREPARE(&ntdll_ctx, ntcreatefilea);
