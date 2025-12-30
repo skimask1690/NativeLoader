@@ -47,6 +47,29 @@ typedef struct _LDR_MODULE {
   ULONG TimeDateStamp;
 } LDR_MODULE, *PLDR_MODULE;
 
+// -------------------- Helpers --------------------
+static void AsciiToWideChar(const char* ascii, UNICODE_STRING* ustr, wchar_t* buf, SIZE_T bufCount) {
+    SIZE_T i = 0;
+    while (ascii[i] && i < bufCount - 1) {
+        buf[i] = (wchar_t)ascii[i];
+        i++;
+    }
+    buf[i] = 0;
+
+    ustr->Length = (USHORT)(i * sizeof(wchar_t));
+    ustr->MaximumLength = (USHORT)((i + 1) * sizeof(wchar_t));
+    ustr->Buffer = buf;
+}
+
+static void InitUnicodeString(UNICODE_STRING* ustr, const wchar_t* wstr) {
+    size_t len = 0;
+    while (wstr[len]) len++;
+
+    ustr->Buffer        = (PWSTR)wstr;
+    ustr->Length        = (USHORT)(len * sizeof(WCHAR));
+    ustr->MaximumLength = (USHORT)((len + 1) * sizeof(WCHAR));
+}
+
 // -------------------- myGetModuleHandleA --------------------
 static HMODULE myGetModuleHandleA(const char* name) {
     PEB* peb = (PEB*)__readgsqword(0x60);
@@ -134,29 +157,6 @@ static HMODULE _myLdrLoadDll(UNICODE_STRING* ustr) {
     pLdrLoadDll(NULL, 0, ustr, (PHANDLE)&hModule);
 
     return hModule;
-}
-
-// -------------------- Helpers --------------------
-static void AsciiToWideChar(const char* ascii, UNICODE_STRING* ustr, wchar_t* buf, SIZE_T bufCount) {
-    SIZE_T i = 0;
-    while (ascii[i] && i < bufCount - 1) {
-        buf[i] = (wchar_t)ascii[i];
-        i++;
-    }
-    buf[i] = 0;
-
-    ustr->Length = (USHORT)(i * sizeof(wchar_t));
-    ustr->MaximumLength = (USHORT)((i + 1) * sizeof(wchar_t));
-    ustr->Buffer = buf;
-}
-
-static void InitUnicodeString(UNICODE_STRING* ustr, const wchar_t* wstr) {
-    size_t len = 0;
-    while (wstr[len]) len++;
-
-    ustr->Buffer        = (PWSTR)wstr;
-    ustr->Length        = (USHORT)(len * sizeof(WCHAR));
-    ustr->MaximumLength = (USHORT)((len + 1) * sizeof(WCHAR));
 }
 
 // -------------------- myLoadLibraryA --------------------
