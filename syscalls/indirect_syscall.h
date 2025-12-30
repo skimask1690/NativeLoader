@@ -1,7 +1,5 @@
-#ifndef INDIRECT_SYSCALL_H
-#define INDIRECT_SYSCALL_H
-#ifndef DIRECT_SYSCALL_H
-#define DIRECT_SYSCALL_H
+#ifndef SYSCALL_H
+#define SYSCALL_H
 
 #include "winapi_loader.h"
 
@@ -174,5 +172,4 @@ static void *BuildIndirectSyscallStub(DWORD ssn, void *syscall_addr) {
     return base;
 }
 
-#endif // INDIRECT_SYSCALL_H
-#endif // DIRECT_SYSCALL_H
+#endif // SYSCALL_H
