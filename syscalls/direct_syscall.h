@@ -5,31 +5,42 @@
 
 /* ================= Macros ================= */
 #define SYSCALL_PREPARE(fn_name)                                   \
-    void *syscall_ptr = NULL;                                       \
-    do {                                                            \
-        NTDLL_DISK_CTX _ctx = MapNtdllFromDisk();                  \
-        DWORD _ssn = ResolveSSN(&_ctx, fn_name);                   \
-        syscall_ptr = BuildDirectSyscallStub(_ssn);                \
+    void *syscall_ptr = NULL;                                     \
+    void *ntdll_view  = NULL;                                     \
+    do {                                                          \
+        NTDLL_DISK_CTX _ctx = MapNtdllFromDisk();                 \
+        ntdll_view = _ctx.base;                                   \
+        DWORD _ssn = ResolveSSN(&_ctx, fn_name);                  \
+        syscall_ptr = BuildDirectSyscallStub(_ssn);              \
     } while(0)
 
 #define SYSCALL_CALL(fn_type, ...)                                  \
-    ({                                                               \
-        fn_type _fn = (fn_type)syscall_ptr;                          \
-        NTSTATUS _ret = _fn(__VA_ARGS__);                             \
-        if (_fn) {                                                    \
-            /* Free stub memory */                                     \
-            NTSTATUS (NTAPI *pNtFreeVirtualMemory)(HANDLE, PVOID *, PSIZE_T, ULONG) = \
-            (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntfreevm);     \
-            PVOID base = _fn;                                          \
-            SIZE_T size = 11;                                           \
-            pNtFreeVirtualMemory((HANDLE)-1, &base, &size, MEM_RELEASE);  \
-            /* Unmap mapped NTDLL section */                            \
-            NTSTATUS (NTAPI *pNtUnmapViewOfSection)(HANDLE, PVOID) =   \
-                (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntunmapview); \
-            pNtUnmapViewOfSection((HANDLE)-1, _fn);                      \
-            syscall_ptr = NULL;                                          \
-        }                                                                 \
-        _ret;                                                             \
+    ({                                                             \
+        fn_type _fn = (fn_type)syscall_ptr;                        \
+        NTSTATUS _ret = _fn(__VA_ARGS__);                           \
+        if (_fn) {                                                 \
+            NTSTATUS (NTAPI *pNtFreeVirtualMemory)(                \
+                HANDLE, PVOID *, PSIZE_T, ULONG) =                 \
+                (void *)myGetProcAddress(                          \
+                    myGetModuleHandleA(ntdll_dll), ntfreevm);      \
+                                                                   \
+            PVOID base = _fn;                                      \
+            SIZE_T size = 11;                                      \
+            pNtFreeVirtualMemory((HANDLE)-1, &base, &size, MEM_RELEASE); \
+                                                                   \
+            NTSTATUS (NTAPI *pNtUnmapViewOfSection)(               \
+                HANDLE, PVOID) =                                   \
+                (void *)myGetProcAddress(                          \
+                    myGetModuleHandleA(ntdll_dll), ntunmapview);   \
+                                                                   \
+            if (ntdll_view) {                                      \
+                pNtUnmapViewOfSection((HANDLE)-1, ntdll_view);     \
+                ntdll_view = NULL;                                 \
+            }                                                      \
+                                                                   \
+            syscall_ptr = NULL;                                    \
+        }                                                          \
+        _ret;                                                      \
     })
 
 /* ================= Strings ================= */
