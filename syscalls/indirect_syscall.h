@@ -77,4 +77,4 @@ static void *BuildIndirectSyscallStub(DWORD ssn, void *syscall_addr) {
     return base;
 }
 
-#endif
+#endif // INDIRECT_SYSCALL_H
