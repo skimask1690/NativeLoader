@@ -47,7 +47,7 @@ static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID *, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG);
 
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
-    NtCreateFile    = (void *)myGetProcAddress(ntdll, ntcreatefile);
+    NtCreateFile = (void *)myGetProcAddress(ntdll, ntcreatefile);
     NtCreateSection = (void *)myGetProcAddress(ntdll, ntcreatesection);
     NtMapViewOfSection = (void *)myGetProcAddress(ntdll, ntmapview);
 
@@ -64,7 +64,24 @@ static NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     HANDLE hSection;
     NtCreateSection(&hSection, SECTION_MAP_READ, NULL, NULL, PAGE_READONLY, SEC_IMAGE, hFile);
 
-    NtMapViewOfSection(hSection, (HANDLE)-1, &ctx.base, 0, 0, NULL, &ctx.size, ViewShare, 0, PAGE_READONLY);
+    PVOID base = NULL;
+    SIZE_T size = 0;
+    NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0, NULL, &size, ViewShare, 0, PAGE_READONLY);
+
+    IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER *)base;
+    IMAGE_NT_HEADERS *nt  = (IMAGE_NT_HEADERS *)((BYTE *)base + dos->e_lfanew);
+
+    SIZE_T min_size = nt->OptionalHeader.SizeOfHeaders;
+    for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
+        IMAGE_SECTION_HEADER *sect = (IMAGE_SECTION_HEADER *)((BYTE *)nt + sizeof(IMAGE_NT_HEADERS) + i * sizeof(IMAGE_SECTION_HEADER));
+        if (sect->Characteristics & IMAGE_SCN_CNT_CODE || sect->VirtualAddress <= nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress) {
+            SIZE_T end = sect->VirtualAddress + sect->Misc.VirtualSize;
+            if (end > min_size) min_size = end;
+        }
+    }
+
+    ctx.base = base;
+    ctx.size = min_size;
 
     return ctx;
 }
