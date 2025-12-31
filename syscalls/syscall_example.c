@@ -12,7 +12,7 @@ STRINGW(filepath, "\\??\\C:\\test\\test.txt");
 __attribute__((section(".text.start")))
 void _start(void)
 {
-    SYSCALL_INIT;
+    SYSCALL_INIT(ctx);
 
     // NtCreateFile
     SYSCALL_PREPARE(ctx, ntcreatefile);
