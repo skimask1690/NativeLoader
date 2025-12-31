@@ -49,7 +49,8 @@ NTDLL_DISK_CTX  MapNtdllFromDisk(void);
 DWORD           ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name);
 
 /* ================= Macros ================= */
-#define LOAD_NTDLL \
+#define SYSCALL_INIT \
+    SYSCALL_CTX *ctx = CreateSyscallContext();   \
     NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk(); \
     DWORD ssn = 0
 
@@ -60,12 +61,13 @@ DWORD           ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name);
 
 #define SYSCALL_CALL(ctx, type) ((type)BuildDirectSyscall(ctx, ssn))
 
-#define UNLOAD_NTDLL(ctx) \
+#define SYSCALL_CLEANUP(ctx) \
     do { \
         SYSCALL_PREPARE(ctx, ntunmapviewofsection); \
         NtUnmapViewOfSection_t NtUnmapViewOfSection = SYSCALL_CALL(ctx, NtUnmapViewOfSection_t); \
         NtUnmapViewOfSection((HANDLE)-1, ntdll_ctx.base); \
         FreeSyscallStub(ctx, NtUnmapViewOfSection); \
+		DestroySyscallContext(ctx);                 \
     } while(0)
 
 /* ================= Implementation ================= */
