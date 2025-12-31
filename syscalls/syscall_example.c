@@ -12,11 +12,7 @@ STRINGW(filepath, "\\??\\C:\\test\\test.txt");
 __attribute__((section(".text.start")))
 void _start(void)
 {
-    // Create syscall context
-    SYSCALL_CTX *ctx = CreateSyscallContext();
-
-    // Map disk-backed ntdll
-    LOAD_NTDLL;
+    SYSCALL_INIT;
 
     // NtCreateFile
     SYSCALL_PREPARE(ctx, ntcreatefile);
@@ -45,9 +41,5 @@ void _start(void)
     NtClose(hFile);
     FreeSyscallStub(ctx, NtClose);
 
-    // Unmap disk-backed ntdll
-    UNLOAD_NTDLL(ctx);
-
-    // Destroy syscall context
-    DestroySyscallContext(ctx);
+    SYSCALL_CLEANUP(ctx); 
 }
