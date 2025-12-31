@@ -50,10 +50,11 @@ DWORD           ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name);
 void *          ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name);
 
 /* ================= Macros ================= */
-#define SYSCALL_INIT \
-    SYSCALL_CTX *ctx = CreateSyscallContext();   \
-    NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk(); \
-    DWORD ssn = 0; void *sysaddr = NULL
+#define SYSCALL_INIT(ctx)                           \
+    SYSCALL_CTX *ctx = CreateSyscallContext(); \
+    NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk();   \
+    DWORD ssn = 0;                                  \
+    void *sysaddr = NULL
 
 #define SYSCALL_PREPARE(ctx, name) \
     do { \
