@@ -20,13 +20,13 @@ STRINGA(ntfreevirtualmemory, "NtFreeVirtualMemory");
 typedef NTSTATUS (NTAPI *NtUnmapViewOfSection_t)(HANDLE, PVOID);
 
 typedef struct _NTDLL_DISK_CTX {
-    PVOID  base;
+    PVOID base;
     SIZE_T size;
 } NTDLL_DISK_CTX;
 
 typedef struct _SYSCALL_STUB {
     struct _SYSCALL_STUB *next;
-    PVOID  base;
+    PVOID base;
     SIZE_T size;
 } SYSCALL_STUB;
 
