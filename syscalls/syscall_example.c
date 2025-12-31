@@ -6,7 +6,7 @@ typedef NTSTATUS (NTAPI *NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTE
 typedef NTSTATUS (NTAPI *NtClose_t)(HANDLE);
 
 /* ================= Strings ================= */
-STRINGW(filepath, "\\??\\C:\\test\\test.txt");
+STRINGW(filepath, "\\??\\C:\\temp\\test.txt");
 
 /* ================= Entry point ================= */
 __attribute__((section(".text.start")))
