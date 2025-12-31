@@ -15,9 +15,11 @@ STRINGA(ntclose, "NtClose");
 STRINGA(ntallocatevirtualmemory, "NtAllocateVirtualMemory");
 STRINGA(ntprotectvirtualmemory, "NtProtectVirtualMemory");
 STRINGA(ntfreevirtualmemory, "NtFreeVirtualMemory");
+STRINGA(ntterminateprocess, "NtTerminateProcess");
 
 /* ================= Types ================= */
 typedef NTSTATUS (NTAPI *NtUnmapViewOfSection_t)(HANDLE, PVOID);
+typedef NTSTATUS (NTAPI *NtTerminateProcess_t)(HANDLE, NTSTATUS);
 
 typedef struct _NTDLL_DISK_CTX {
     PVOID base;
@@ -72,6 +74,14 @@ void *          ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name);
         FreeSyscallStub(ctx, NtUnmapViewOfSection); \
 		DestroySyscallContext(ctx);                 \
     } while(0)
+
+#define SYSCALL_EXIT(ctx, status)                                   \
+    do {                                                            \
+        SYSCALL_PREPARE(ctx, ntterminateprocess);                 \
+        NtTerminateProcess_t NtTerminateProcess =                  \
+            SYSCALL_CALL(ctx, NtTerminateProcess_t);                \
+        NtTerminateProcess((HANDLE)-1, (NTSTATUS)(status));         \
+    } while (0)
 
 /* ================= Implementation ================= */
 SYSCALL_CTX *CreateSyscallContext(void) {
