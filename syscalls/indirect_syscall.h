@@ -86,7 +86,7 @@ void *          ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name);
     do { \
         SYSCALL_PREPARE(ctx, ntwaitforsingleobjectex); \
         NtWaitForSingleObjectEx_t NtWaitForSingleObjectEx = SYSCALL_CALL(ctx, NtWaitForSingleObjectEx_t); \
-        NtWaitForSingleObjectEx((HANDLE)-2, FALSE, NULL, TRUE); /* NtCurrentThread, alertableEx = TRUE */ \
+        NtWaitForSingleObjectEx((HANDLE)-2, FALSE, NULL, TRUE); \
         FreeSyscallStub(ctx, NtWaitForSingleObjectEx); \
     } while(0)
 
@@ -102,16 +102,14 @@ void *          ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name);
 #define SYSCALL_THREADEXIT(ctx, status)                            \
     do {                                                            \
         SYSCALL_PREPARE(ctx, ntterminatethread);                    \
-        NtTerminateThread_t NtTerminateThread =                     \
-            SYSCALL_CALL(ctx, NtTerminateThread_t);                 \
+        NtTerminateThread_t NtTerminateThread = SYSCALL_CALL(ctx, NtTerminateThread_t); \
         NtTerminateThread((HANDLE)-2, (NTSTATUS)(status));          \
     } while (0)
 
-#define SYSCALL_PROCESSEXIT(ctx, status)                                   \
+#define SYSCALL_PROCESSEXIT(ctx, status)                            \
     do {                                                            \
         SYSCALL_PREPARE(ctx, ntterminateprocess);                 \
-        NtTerminateProcess_t NtTerminateProcess =                  \
-            SYSCALL_CALL(ctx, NtTerminateProcess_t);                \
+        NtTerminateProcess_t NtTerminateProcess =  SYSCALL_CALL(ctx, NtTerminateProcess_t);  \
         NtTerminateProcess((HANDLE)-1, (NTSTATUS)(status));         \
     } while (0)
 
