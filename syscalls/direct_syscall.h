@@ -86,14 +86,14 @@ DWORD           ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name);
 		DestroySyscallContext(ctx);                 \
     } while(0)
 
-#define SYSCALL_THREADEXIT(ctx, status)                            \
+#define SYSCALL_EXITTHREAD(ctx, status)                            \
     do {                                                            \
         SYSCALL_PREPARE(ctx, ntterminatethread);                    \
         NtTerminateThread_t NtTerminateThread = SYSCALL_CALL(ctx, NtTerminateThread_t); \
         NtTerminateThread((HANDLE)-2, (NTSTATUS)(status));          \
     } while (0)
 
-#define SYSCALL_PROCESSEXIT(ctx, status)                            \
+#define SYSCALL_EXITPROCESS(ctx, status)                            \
     do {                                                            \
         SYSCALL_PREPARE(ctx, ntterminateprocess);                 \
         NtTerminateProcess_t NtTerminateProcess =  SYSCALL_CALL(ctx, NtTerminateProcess_t);  \
