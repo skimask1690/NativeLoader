@@ -16,14 +16,12 @@ STRINGA(ntallocatevirtualmemory, "NtAllocateVirtualMemory");
 STRINGA(ntprotectvirtualmemory, "NtProtectVirtualMemory");
 STRINGA(ntfreevirtualmemory, "NtFreeVirtualMemory");
 STRINGA(ntdelayexecution, "NtDelayExecution");
-STRINGA(ntwaitforsingleobjectex, "NtWaitForSingleObjectEx");
 STRINGA(ntterminatethread,"NtTerminateThread");
 STRINGA(ntterminateprocess, "NtTerminateProcess");
 
 /* ================= Types ================= */
 typedef NTSTATUS (NTAPI *NtUnmapViewOfSection_t)(HANDLE, PVOID);
 typedef NTSTATUS (NTAPI *NtDelayExecution_t)(BOOLEAN, PLARGE_INTEGER);
-typedef NTSTATUS (NTAPI *NtWaitForSingleObjectEx_t)(HANDLE, BOOLEAN, PLARGE_INTEGER, BOOLEAN);
 typedef NTSTATUS (NTAPI *NtTerminateThread_t)(HANDLE, NTSTATUS);
 typedef NTSTATUS (NTAPI *NtTerminateProcess_t)(HANDLE, NTSTATUS);
 
@@ -80,14 +78,6 @@ void *          ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name);
         liInterval.QuadPart = -(LONGLONG)(ms) * 10000LL; \
         NtDelayExecution(FALSE, &liInterval);   \
         FreeSyscallStub(ctx, NtDelayExecution); \
-    } while(0)
-
-#define SYSCALL_WAIT(ctx) \
-    do { \
-        SYSCALL_PREPARE(ctx, ntwaitforsingleobjectex); \
-        NtWaitForSingleObjectEx_t NtWaitForSingleObjectEx = SYSCALL_CALL(ctx, NtWaitForSingleObjectEx_t); \
-        NtWaitForSingleObjectEx((HANDLE)-2, FALSE, NULL, TRUE); \
-        FreeSyscallStub(ctx, NtWaitForSingleObjectEx); \
     } while(0)
 
 #define SYSCALL_CLEANUP(ctx) \
