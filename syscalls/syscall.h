@@ -188,9 +188,7 @@ NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     OBJECT_ATTRIBUTES oa; InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
     HANDLE hFile; IO_STATUS_BLOCK iosb;
-    NtCreateFile(&hFile, FILE_GENERIC_READ, &oa, &iosb, NULL,
-                 FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN,
-                 FILE_NON_DIRECTORY_FILE, NULL, 0);
+    NtCreateFile(&hFile, FILE_GENERIC_READ, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     HANDLE hSection;
     NtCreateSection(&hSection, SECTION_MAP_READ, NULL, NULL, PAGE_READONLY, SEC_IMAGE, hFile);
@@ -326,3 +324,4 @@ void FreeSyscallStub(SYSCALL_CTX *ctx, PVOID specific_stub) {
 }
 
 #endif // SYSCALL_H
+
