@@ -1,4 +1,6 @@
-#include "direct_syscall.h" // or "indirect_syscall.h"
+#include "syscall.h"
+
+// #define INDIRECT_SYSCALL
 
 /* ================= Function pointer types ================= */
 typedef NTSTATUS (NTAPI *NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
