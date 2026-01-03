@@ -28,7 +28,7 @@ compile_cmd = [
 ]
 
 if use_dll:
-    compile_cmd.append("-shared")
+    compile_cmd.extend(["-shared", "-Wl,--exclude-all-symbols"])
 
 if not use_exe and not use_dll:
     compile_cmd.extend(["-T", "linker.ld"])
