@@ -24,15 +24,6 @@ static ULONG SectionProtection(DWORD characteristics) {
     return PAGE_NOACCESS;
 }
 
-// -------------------- TLS callbacks --------------------
-typedef void (*TLS_CALLBACK)(PVOID, DWORD, PVOID);
-
-static void CallTlsCallbacks(BYTE* base, IMAGE_DATA_DIRECTORY tlsDir) {
-    IMAGE_TLS_DIRECTORY64* tls = (IMAGE_TLS_DIRECTORY64*)(base + tlsDir.VirtualAddress);
-    TLS_CALLBACK* cb = (TLS_CALLBACK*)tls->AddressOfCallBacks;
-    while (*cb) { (*cb)(base, DLL_PROCESS_ATTACH, NULL); cb++; }
-}
-
 // -------------------- Import/Export resolution --------------------
 static ULONG_PTR ResolveExport(HMODULE mod, const char* name, int isOrdinal) {
     HMODULE curMod = mod;
