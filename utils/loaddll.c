@@ -76,7 +76,7 @@ HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
         DWORD protect = GetProtection(section->Characteristics);
         BYTE* secStart = imageBase + section->VirtualAddress;
         SIZE_T secSize = section->Misc.VirtualSize;
-
+    
         if (regionSize && protect == currentProtect && regionStart + regionSize == secStart)
             regionSize += secSize; // merge with previous
         else {
@@ -86,10 +86,15 @@ HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
             regionSize = secSize;
             currentProtect = protect;
         }
+    
+        // Free discardable sections
+        if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
+            VirtualFree(secStart, secSize, MEM_DECOMMIT);
+        }
     }
     if (regionSize)
         VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
-
+    
     // Call DLL entry point
     DllEntryProc DllMain = (DllEntryProc)(imageBase + ntHeaders->OptionalHeader.AddressOfEntryPoint);
     if (!DllMain((HINSTANCE)imageBase, DLL_PROCESS_ATTACH, NULL)) {
