@@ -115,13 +115,11 @@ static void* MapImage(unsigned char* data) {
 
     IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)data;
     IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(data + dos->e_lfanew);
+    IMAGE_SECTION_HEADER* sec = IMAGE_FIRST_SECTION(nt);
 
     PVOID base = NULL;
-    SIZE_T size = nt->OptionalHeader.SizeOfImage;
-
-    NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-
-    IMAGE_SECTION_HEADER* sec = (IMAGE_SECTION_HEADER*)(nt + 1);
+    SIZE_T totalSize = nt->OptionalHeader.SizeOfImage;
+    NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
     // copy headers
     for (SIZE_T i = 0; i < nt->OptionalHeader.SizeOfHeaders; i++)
@@ -131,23 +129,19 @@ static void* MapImage(unsigned char* data) {
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
         BYTE* dest = (BYTE*)base + sec[i].VirtualAddress;
         BYTE* src  = data + sec[i].PointerToRawData;
-
         for (DWORD j = 0; j < sec[i].SizeOfRawData; j++)
             dest[j] = src[j];
     }
 
-    // relocations
+    // Apply relocations
     ULONG_PTR delta = (ULONG_PTR)base - nt->OptionalHeader.ImageBase;
     IMAGE_DATA_DIRECTORY rl = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
-
     if (rl.Size) {
         IMAGE_BASE_RELOCATION* r = (IMAGE_BASE_RELOCATION*)((BYTE*)base + rl.VirtualAddress);
         BYTE* end = (BYTE*)r + rl.Size;
-
         while ((BYTE*)r < end && r->SizeOfBlock) {
             WORD* list = (WORD*)(r + 1);
             DWORD count = (r->SizeOfBlock - sizeof(*r)) / sizeof(WORD);
-
             for (DWORD i = 0; i < count; i++) {
                 if ((list[i] >> 12) == IMAGE_REL_BASED_DIR64) {
                     ULONG_PTR* ptr = (ULONG_PTR*)((BYTE*)base + r->VirtualAddress + (list[i] & 0xFFF));
@@ -161,18 +155,37 @@ static void* MapImage(unsigned char* data) {
     // imports
     ResolveImport((BYTE*)base, nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]);
 
-    // set section protections
-    for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
-        BYTE* addr = (BYTE*)base + sec[i].VirtualAddress;
-        SIZE_T sz  = sec[i].Misc.VirtualSize;
-        ULONG prot = SectionProtection(sec[i].Characteristics);
+    // protect headers + first section
+    BYTE* regionStart = (BYTE*)base;
+    SIZE_T regionSize = sec[0].VirtualAddress + sec[0].Misc.VirtualSize;
+    ULONG currentProt = SectionProtection(sec[0].Characteristics);
+    ULONG oldProt;
 
-        NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&addr, &sz, prot, &prot);
+    // protect remaining sections
+    for (WORD i = 1; i < nt->FileHeader.NumberOfSections; i++, sec++) {
+        ULONG secProt = SectionProtection(sec[i].Characteristics);
+        BYTE* secStart = (BYTE*)base + sec[i].VirtualAddress;
+        SIZE_T secSize = sec[i].Misc.VirtualSize;
 
-        // free discardable sections
+        if (secProt == currentProt && regionStart + regionSize == secStart)
+            regionSize += secSize; // merge with previous
+        else {
+            NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&regionStart, &regionSize, currentProt, &oldProt);
+            regionStart = secStart;
+            regionSize = secSize;
+            currentProt = secProt;
+        }
+    }
+
+    if (regionSize)
+        NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&regionStart, &regionSize, currentProt, &oldProt);
+
+    // free discardable sections
+    sec = IMAGE_FIRST_SECTION(nt);
+    for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++) {
         if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
-            PVOID discardBase = addr;
-            SIZE_T discardSize = sz;
+            PVOID discardBase = (BYTE*)base + sec[i].VirtualAddress;
+            SIZE_T discardSize = sec[i].Misc.VirtualSize;
             NtFreeVirtualMemory((HANDLE)-1, &discardBase, &discardSize, MEM_DECOMMIT);
         }
     }
