@@ -121,11 +121,11 @@ static void* MapImage(unsigned char* data) {
     SIZE_T totalSize = nt->OptionalHeader.SizeOfImage;
     NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-    // copy headers
+    // Copy headers
     for (SIZE_T i = 0; i < nt->OptionalHeader.SizeOfHeaders; i++)
         ((BYTE*)base)[i] = data[i];
 
-    // copy sections
+    // Copy sections
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
         BYTE* dest = (BYTE*)base + sec[i].VirtualAddress;
         BYTE* src  = data + sec[i].PointerToRawData;
@@ -152,23 +152,23 @@ static void* MapImage(unsigned char* data) {
         }
     }
 
-    // imports
+    // Imports
     ResolveImport((BYTE*)base, nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]);
 
-    // protect headers + first section
+    // Protect headers + first section
     BYTE* regionStart = (BYTE*)base;
     SIZE_T regionSize = sec[0].VirtualAddress + sec[0].Misc.VirtualSize;
     ULONG currentProt = SectionProtection(sec[0].Characteristics);
     ULONG oldProt;
 
-    // protect remaining sections
+    // Protect remaining sections
     for (WORD i = 1; i < nt->FileHeader.NumberOfSections; i++, sec++) {
         ULONG secProt = SectionProtection(sec[i].Characteristics);
         BYTE* secStart = (BYTE*)base + sec[i].VirtualAddress;
         SIZE_T secSize = sec[i].Misc.VirtualSize;
 
         if (secProt == currentProt && regionStart + regionSize == secStart)
-            regionSize += secSize; // merge with previous
+            regionSize += secSize; // Merge with previous
         else {
             NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&regionStart, &regionSize, currentProt, &oldProt);
             regionStart = secStart;
@@ -180,7 +180,7 @@ static void* MapImage(unsigned char* data) {
     if (regionSize)
         NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&regionStart, &regionSize, currentProt, &oldProt);
 
-    // free discardable sections
+    // Free discardable sections
     sec = IMAGE_FIRST_SECTION(nt);
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++) {
         if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
