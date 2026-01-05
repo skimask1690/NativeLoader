@@ -63,37 +63,43 @@ HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
     }
 
     // Protect headers + first section
-    section = IMAGE_FIRST_SECTION(ntHeaders);
+    IMAGE_SECTION_HEADER* sec = IMAGE_FIRST_SECTION(ntHeaders);
     DWORD oldProtect;
-    SIZE_T firstSize = (section->VirtualAddress + section->Misc.VirtualSize);
-    VirtualProtect(imageBase, firstSize, PAGE_READONLY, &oldProtect);
-
-    // Protect remaining sections
-    BYTE* regionStart = imageBase + section->VirtualAddress + section->Misc.VirtualSize;
-    SIZE_T regionSize = 0;
-    DWORD currentProtect = 0;
-    for (size_t i = 1; i < ntHeaders->FileHeader.NumberOfSections; i++, section++) {
-        DWORD protect = GetProtection(section->Characteristics);
-        BYTE* secStart = imageBase + section->VirtualAddress;
-        SIZE_T secSize = section->Misc.VirtualSize;
     
-        if (regionSize && protect == currentProtect && regionStart + regionSize == secStart)
-            regionSize += secSize; // merge with previous
-        else {
-            if (regionSize)
-                VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
+    BYTE* regionStart = imageBase;
+    SIZE_T regionSize = sec[0].VirtualAddress + sec[0].Misc.VirtualSize;
+    DWORD currentProtect = GetProtection(sec[0].Characteristics);
+    
+    // Protect remaining sections
+    for (WORD i = 1; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+        DWORD secProtect = GetProtection(sec[i].Characteristics);
+        BYTE* secStart = imageBase + sec[i].VirtualAddress;
+        SIZE_T secSize = sec[i].Misc.VirtualSize;
+    
+        if (secProtect == currentProtect &&
+            regionStart + regionSize == secStart) {
+            regionSize += secSize;
+        } else {
+            VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
             regionStart = secStart;
             regionSize = secSize;
-            currentProtect = protect;
-        }
-    
-        // Free discardable sections
-        if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
-            VirtualFree(secStart, secSize, MEM_DECOMMIT);
+            currentProtect = secProtect;
         }
     }
+    
+    // Final region
     if (regionSize)
         VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
+    
+    // Free discardable sections
+    sec = IMAGE_FIRST_SECTION(ntHeaders);
+    for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+        if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
+            BYTE* discardBase = imageBase + sec[i].VirtualAddress;
+            SIZE_T discardSize = sec[i].Misc.VirtualSize;
+            VirtualFree(discardBase, discardSize, MEM_DECOMMIT);
+        }
+    }
     
     // Call DLL entry point
     DllEntryProc DllMain = (DllEntryProc)(imageBase + ntHeaders->OptionalHeader.AddressOfEntryPoint);
@@ -137,3 +143,4 @@ int main(int argc, char** argv) {
     free(dllBuffer);
     return 0;
 }
+
