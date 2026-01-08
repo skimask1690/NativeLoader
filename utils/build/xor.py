@@ -2,10 +2,11 @@ import os
 import sys
 import subprocess
 import random
+import base64
 
 if len(sys.argv) < 3:
     script_name = os.path.basename(sys.argv[0])
-    print(f"Usage: {script_name} <shellcode.bin> <output.bin> [-l <key_length>] [-k <key>] [-i <iterations>]")
+    print(f"Usage: {script_name} <shellcode.bin> <output.bin> [-i <iterations>] [-l <key_length>] [-k <key>] [-base64]")
     sys.exit(1)
 
 bin_file = sys.argv[1]
@@ -13,6 +14,7 @@ output_bin = sys.argv[2]
 
 key_length = 1
 iterations = 1
+use_base64 = "-base64" or "-b64" in sys.argv
 
 if "-l" in sys.argv:
     l_index = sys.argv.index("-l")
@@ -182,6 +184,12 @@ void _start() {{
 
     with open(output_bin, "rb") as f:
         current_shellcode = f.read()
+
+if use_base64:
+    with open(output_bin, "rb") as f:
+        final_b64 = base64.b64encode(f.read())
+    with open(output_bin, "wb") as f:
+        f.write(final_b64)
 
 if iterations > 1:
     print(f"[+] Shellcode generated: {output_bin}")
