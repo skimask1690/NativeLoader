@@ -15,22 +15,13 @@ typedef NTSTATUS(NTAPI* NtProtectVirtualMemory_t)(HANDLE, PVOID*, PSIZE_T, ULONG
 typedef NTSTATUS(NTAPI* NtFreeVirtualMemory_t)(HANDLE, PVOID*, PSIZE_T, ULONG);
 
 // -------------------- Helpers --------------------
-static ULONG SectionProtection(DWORD characteristics) {
-    if (characteristics & IMAGE_SCN_MEM_EXECUTE) {
-        if (characteristics & IMAGE_SCN_MEM_WRITE)
-            return PAGE_EXECUTE_READWRITE;
-        else if (characteristics & IMAGE_SCN_MEM_READ)
-            return PAGE_EXECUTE_READ;
-        else
-            return PAGE_EXECUTE;
-    } else if (characteristics & IMAGE_SCN_MEM_READ) {
-        if (characteristics & IMAGE_SCN_MEM_WRITE)
-            return PAGE_READWRITE;
-        else
-            return PAGE_READONLY;
-    } else if (characteristics & IMAGE_SCN_MEM_WRITE) {
+static ULONG SectionProtection(DWORD ch) {
+    if (ch & IMAGE_SCN_MEM_EXECUTE)
+        return PAGE_EXECUTE_READ;
+    if (ch & IMAGE_SCN_MEM_WRITE)
         return PAGE_READWRITE;
-    }
+    if (ch & IMAGE_SCN_MEM_READ)
+        return PAGE_READONLY;
     return PAGE_NOACCESS;
 }
 
@@ -203,3 +194,4 @@ static void ExecuteFromMemory(unsigned char* data) {
 }
 
 #endif // PE_LOADER_H
+
