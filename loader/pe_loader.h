@@ -174,11 +174,11 @@ static void* MapImage(unsigned char* data) {
 
     // free discardable sections
     sec = IMAGE_FIRST_SECTION(nt);
-    NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++) {
         if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
             PVOID discardBase = (BYTE*)base + sec[i].VirtualAddress;
             SIZE_T discardSize = sec[i].Misc.VirtualSize;
+            NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
             NtFreeVirtualMemory((HANDLE)-1, &discardBase, &discardSize, MEM_DECOMMIT);
         }
     }
