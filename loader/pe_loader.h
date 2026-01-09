@@ -105,17 +105,15 @@ static void ResolveImport(BYTE* base, IMAGE_DATA_DIRECTORY im) {
 
 // -------------------- PE mapping --------------------
 static void* MapImage(unsigned char* data) {
-    HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
-    NtAllocateVirtualMemory_t NtAllocateVirtualMemory = (NtAllocateVirtualMemory_t)myGetProcAddress(ntdll, ntallocatevirtualmemory);
-    NtProtectVirtualMemory_t NtProtectVirtualMemory = (NtProtectVirtualMemory_t)myGetProcAddress(ntdll, ntprotectvirtualmemory);
-    NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
-
     IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)data;
     IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(data + dos->e_lfanew);
     IMAGE_SECTION_HEADER* sec = IMAGE_FIRST_SECTION(nt);
 
+	HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
+
     PVOID base = NULL;
     SIZE_T totalSize = nt->OptionalHeader.SizeOfImage;
+    NtAllocateVirtualMemory_t NtAllocateVirtualMemory = (NtAllocateVirtualMemory_t)myGetProcAddress(ntdll, ntallocatevirtualmemory);
     NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
     // copy headers
@@ -155,6 +153,7 @@ static void* MapImage(unsigned char* data) {
     SIZE_T regionSize = sec[0].VirtualAddress + sec[0].Misc.VirtualSize;
     ULONG currentProt = SectionProtection(sec[0].Characteristics);
     ULONG oldProt;
+    NtProtectVirtualMemory_t NtProtectVirtualMemory = (NtProtectVirtualMemory_t)myGetProcAddress(ntdll, ntprotectvirtualmemory);
 
     for (WORD i = 1; i < nt->FileHeader.NumberOfSections; i++, sec++) {
         ULONG secProt = SectionProtection(sec[i].Characteristics);
@@ -175,6 +174,7 @@ static void* MapImage(unsigned char* data) {
 
     // free discardable sections
     sec = IMAGE_FIRST_SECTION(nt);
+    NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++) {
         if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
             PVOID discardBase = (BYTE*)base + sec[i].VirtualAddress;
@@ -188,12 +188,19 @@ static void* MapImage(unsigned char* data) {
 
 // -------------------- Execute entry --------------------
 static void ExecuteFromMemory(unsigned char* data) {
-    BYTE* image = MapImage(data);
+    unsigned char* image = MapImage(data);
 
     IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)image;
-    IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)((BYTE*)image + dos->e_lfanew);
+    IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(image + dos->e_lfanew);
 
     ((void(*)(void))(image + nt->OptionalHeader.AddressOfEntryPoint))();
+
+    HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
+
+    PVOID base = image;
+    SIZE_T totalSize = nt->OptionalHeader.SizeOfImage;
+    NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
+    NtFreeVirtualMemory((HANDLE)-1, &base, &totalSize, MEM_RELEASE);
 }
 
 #endif // PE_LOADER_H
