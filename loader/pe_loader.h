@@ -190,8 +190,8 @@ static void* MapImage(unsigned char* data) {
 static void ExecuteFromMemory(unsigned char* data) {
     BYTE* image = MapImage(data);
 
-    IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)data;
-    IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)(data + dos->e_lfanew);
+    IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)image;
+    IMAGE_NT_HEADERS64* nt = (IMAGE_NT_HEADERS64*)((BYTE*)image + dos->e_lfanew);
 
     ((void(*)(void))(image + nt->OptionalHeader.AddressOfEntryPoint))();
 }
