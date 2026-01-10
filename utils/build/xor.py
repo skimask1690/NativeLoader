@@ -12,9 +12,11 @@ if len(sys.argv) < 3:
 bin_file = sys.argv[1]
 output_bin = sys.argv[2]
 
+args = [arg.lower() for arg in sys.argv]
+
 key_length = 1
 iterations = 1
-use_base64 = "-base64" in sys.argv or "-b64" in sys.argv
+use_base64 = "-base64" in args or "-b64" in args
 
 if "-l" in sys.argv:
     l_index = sys.argv.index("-l")
