@@ -179,7 +179,6 @@ static void ExecuteFromMemory(unsigned char* data) {
 
     ((void(*)(void))(base + nt->OptionalHeader.AddressOfEntryPoint))();
 
-    SecureZeroMemory(base, totalSize);
     NtFreeVirtualMemory((HANDLE)-1, &base, &totalSize, MEM_RELEASE);
 }
 
