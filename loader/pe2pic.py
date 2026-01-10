@@ -31,7 +31,7 @@ c_source = textwrap.dedent(f"""
 
 __attribute__((section(".text")))
 unsigned char pe_blob[] = {{
-    {hex_array}
+    {hex_array} // x64 native PE bytes
 }};
 
 __attribute__((section(".text.start")))
