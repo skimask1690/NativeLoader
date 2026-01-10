@@ -16,12 +16,9 @@ typedef NTSTATUS(NTAPI* NtFreeVirtualMemory_t)(HANDLE, PVOID*, PSIZE_T, ULONG);
 
 // -------------------- Helpers --------------------
 static ULONG SectionProtection(DWORD ch) {
-    if (ch & IMAGE_SCN_MEM_EXECUTE)
-        return PAGE_EXECUTE_READ;
-    if (ch & IMAGE_SCN_MEM_WRITE)
-        return PAGE_READWRITE;
-    if (ch & IMAGE_SCN_MEM_READ)
-        return PAGE_READONLY;
+    if (ch & IMAGE_SCN_MEM_EXECUTE) return PAGE_EXECUTE_READ;
+    if (ch & IMAGE_SCN_MEM_WRITE) return PAGE_READWRITE;
+    if (ch & IMAGE_SCN_MEM_READ) return PAGE_READONLY;
     return PAGE_NOACCESS;
 }
 
