@@ -147,9 +147,6 @@ if use_dll:
 if not use_exe and not use_dll:
     compile_cmd.extend(["-T", "linker.ld"])
 
-if use_xor:
-    compile_cmd.append("-DXOR")
-
 try:
     subprocess.run(
         compile_cmd,
