@@ -178,7 +178,9 @@ static void ExecuteFromMemory(unsigned char* data) {
     }
 
     ((void(*)(void))(base + nt->OptionalHeader.AddressOfEntryPoint))();
-
+    
+    NtProtectVirtualMemory((HANDLE)-1, &base, &totalSize, PAGE_READWRITE, &oldProt);
+    SecureZeroMemory(base, totalSize);
     NtFreeVirtualMemory((HANDLE)-1, &base, &totalSize, MEM_RELEASE);
 }
 
