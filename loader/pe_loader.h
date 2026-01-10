@@ -170,7 +170,6 @@ static void ExecuteFromMemory(unsigned char* data) {
         if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
             PVOID discardBase = (BYTE*)base + sec[i].VirtualAddress;
             SIZE_T discardSize = sec[i].Misc.VirtualSize;
-            SecureZeroMemory(discardBase, discardSize);
             NtFreeVirtualMemory((HANDLE)-1, &discardBase, &discardSize, MEM_DECOMMIT);
         }
     }
