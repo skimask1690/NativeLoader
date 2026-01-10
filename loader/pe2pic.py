@@ -26,9 +26,6 @@ key = [random.randint(1, 255) for _ in range(key_length)]
 if "-l" in args:
     l_index = args.index("-l")
     key_length = int(sys.argv[l_index + 1], 0)
-    if key_length not in (1, 2):
-        print("Error: key length must be 1 or 2 bytes")
-        sys.exit(1)
     key = [random.randint(1, 255) for _ in range(key_length)]
 
 if "-k" in args:
@@ -43,10 +40,6 @@ if "-k" in args:
         key = [int(hex_str[i:i+2], 16) for i in range(0, len(hex_str), 2)]
     else:
         key = [int(k_value, 0)]
-
-    if len(key) not in (1, 2):
-        print("Error: key length must be 1 or 2 bytes")
-        sys.exit(1)
 
     key_length = len(key)
 
