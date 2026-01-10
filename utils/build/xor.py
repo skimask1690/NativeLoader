@@ -14,7 +14,7 @@ output_bin = sys.argv[2]
 
 key_length = 1
 iterations = 1
-use_b64 = "-base64" in args or "-b64" in args
+use_base64 = "-base64" in sys.argv or "-b64" in sys.argv
 
 if "-l" in sys.argv:
     l_index = sys.argv.index("-l")
