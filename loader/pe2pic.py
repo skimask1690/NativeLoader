@@ -99,15 +99,15 @@ if use_encrypt:
     typedef unsigned long u32;
 
     __attribute__((section(".text")))
-    static unsigned char enc_blob[] = {{
+    unsigned char enc_blob[] = {{
         {hex_array}
     }};
 
     __attribute__((section(".text")))
-    static unsigned char chaskey_key[16] = {{{key_literal}}};
+    unsigned char chaskey_key[16] = {{{key_literal}}};
 
     __attribute__((section(".text")))
-    static unsigned char chaskey_nonce[8] = {{{nonce_literal}}};
+    unsigned char chaskey_nonce[8] = {{{nonce_literal}}};
 
     #define ROTL(x,b) (((x) >> (32 - (b))) | ((x) << (b)))
 
@@ -263,3 +263,4 @@ try:
 
 except subprocess.CalledProcessError:
     sys.exit(1)
+
