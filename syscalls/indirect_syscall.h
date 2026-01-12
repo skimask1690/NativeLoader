@@ -205,7 +205,7 @@ DWORD ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name) {
         f[2]==0xD1 && f[3]==0xB8)
         return *(DWORD *)(f + 4);
 
-    for (int i = 0; i < 32; i++)
+    for (int i = 0; i < 23 - 7; i++)
         if (f[i]==0xB8 && f[i+5]==0x0F && f[i+6]==0x05)
             return *(DWORD *)(f + i + 1);
 
@@ -215,7 +215,7 @@ DWORD ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name) {
 void *ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name) {
     BYTE *f = GetExport(ctx, name);
 
-    for (int i = 0; i < 32; i++)
+    for (int i = 0; i < 23 - 2; i++)
         if (f[i]==0x0F && f[i+1]==0x05)
             return f + i;
 
