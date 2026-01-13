@@ -117,7 +117,6 @@ void DestroySyscallContext(SYSCALL_CTX *ctx) {
 
     NTSTATUS (NTAPI *NtFreeVirtualMemory)(HANDLE, PVOID*, PSIZE_T, ULONG) = (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntfreevirtualmemory);
 
-    RtlSecureZeroMemory(ctx, sizeof(*ctx));
     PVOID p = ctx; SIZE_T s = 0;
     NtFreeVirtualMemory((HANDLE)-1, &p, &s, MEM_RELEASE);
 }
@@ -238,14 +237,9 @@ void FreeSyscallStub(SYSCALL_CTX *ctx, PVOID specific_stub) {
         SYSCALL_STUB *next = cur->next;
         if (specific_stub == NULL || cur->base == specific_stub) {
             if (cur->base) {
-                ULONG oldProt;
-                NtProtectVirtualMemory((HANDLE)-1, &cur->base, &cur->size, PAGE_READWRITE, &oldProt);
-                RtlSecureZeroMemory(cur->base, cur->size);
-
                 PVOID mb = cur->base; SIZE_T zs = 0;
                 NtFreeVirtualMemory((HANDLE)-1, &mb, &zs, MEM_RELEASE);
             }
-            RtlSecureZeroMemory(cur, sizeof(*cur));
             PVOID nb = cur; SIZE_T nz = 0;
             NtFreeVirtualMemory((HANDLE)-1, &nb, &nz, MEM_RELEASE);
 
