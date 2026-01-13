@@ -228,7 +228,6 @@ void *BuildDirectSyscall(SYSCALL_CTX *ctx, DWORD ssn) {
 void FreeSyscallStub(SYSCALL_CTX *ctx, PVOID specific_stub) {
 
     NTSTATUS (NTAPI *NtFreeVirtualMemory)(HANDLE, PVOID*, PSIZE_T, ULONG) = (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntfreevirtualmemory);
-    NTSTATUS (NTAPI *NtProtectVirtualMemory)(HANDLE, PVOID*, PSIZE_T, ULONG, PULONG) = (void *)myGetProcAddress(myGetModuleHandleA(ntdll_dll), ntprotectvirtualmemory);
 
     SYSCALL_STUB *prev = NULL;
     SYSCALL_STUB *cur  = ctx->head;
