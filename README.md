@@ -1,4 +1,4 @@
-# ⚙️ WinAPI Loader
+# ⚙️ NativeLoader
 
 This project demonstrates a minimal **position-independent x64 Windows loader** that dynamically resolves DLLs and functions **without using the C runtime or static imports**. It shows how to:
 
