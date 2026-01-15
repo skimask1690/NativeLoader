@@ -174,11 +174,13 @@ static void ExecuteFromMemory(unsigned char* data) {
         }
     }
 
-    ((void(*)(void))(base + nt->OptionalHeader.AddressOfEntryPoint))();
-    
-    NtProtectVirtualMemory((HANDLE)-1, &base, &totalSize, PAGE_READWRITE, &oldProt);
-    SecureZeroMemory(base, totalSize);
-    NtFreeVirtualMemory((HANDLE)-1, &base, &totalSize, MEM_RELEASE);
+    void *entryPtr = (BYTE*)base + nt->OptionalHeader.AddressOfEntryPoint;
+
+    PVOID stubBase = data;
+    SIZE_T stubSize = nt->OptionalHeader.SizeOfHeaders;
+    NtFreeVirtualMemory((HANDLE)-1, &stubBase, &stubSize, MEM_RELEASE);
+
+    ((void(*)(void))entryPtr)();
 }
 
 #endif // PE_LOADER_H
