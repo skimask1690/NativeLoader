@@ -213,6 +213,8 @@ compile_cmd = [
     "-o", output_file
 ]
 
+if use_encrypt:
+    compile_cmd.extend(["-DENCRYPT"])
 if use_dll:
     compile_cmd.extend(["-shared", "-Wl,--exclude-all-symbols"])
 if not use_exe and not use_dll:
@@ -263,4 +265,3 @@ try:
 
 except subprocess.CalledProcessError:
     sys.exit(1)
-
