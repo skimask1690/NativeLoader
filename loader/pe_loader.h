@@ -122,7 +122,7 @@ static void ExecuteFromMemory(unsigned char* data) {
     LARGE_INTEGER maxSize;
     maxSize.QuadPart = nt->OptionalHeader.SizeOfImage;
 
-    // Create section
+    // Create RWX section
     NtCreateSection_t NtCreateSection = (NtCreateSection_t)myGetProcAddress(ntdll, ntcreatesection);
     NtCreateSection(&hSection, SECTION_ALL_ACCESS, NULL, &maxSize, PAGE_EXECUTE_READWRITE, SEC_COMMIT, NULL);
 
