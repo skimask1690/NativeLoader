@@ -214,7 +214,7 @@ compile_cmd = [
 ]
 
 if use_encrypt:
-    compile_cmd.extend(["-DENCRYPT"])
+    compile_cmd.extend(["-DFREEMEM"])
 if use_dll:
     compile_cmd.extend(["-shared", "-Wl,--exclude-all-symbols"])
 if not use_exe and not use_dll:
