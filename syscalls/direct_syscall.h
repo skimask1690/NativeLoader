@@ -86,18 +86,18 @@ DWORD           ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name);
 		DestroySyscallContext(ctx);                 \
     } while(0)
 
-#define SYSCALL_EXITTHREAD(ctx, status)                            \
-    do {                                                            \
-        SYSCALL_PREPARE(ctx, ntterminatethread);                    \
+#define SYSCALL_EXITTHREAD(ctx, status) \
+    do { \
+        SYSCALL_PREPARE(ctx, ntterminatethread); \
         NtTerminateThread_t NtTerminateThread = SYSCALL_CALL(ctx, NtTerminateThread_t); \
-        NtTerminateThread((HANDLE)-2, (NTSTATUS)(status));          \
+        NtTerminateThread((HANDLE)-2, (NTSTATUS)(status)); \
     } while (0)
 
-#define SYSCALL_EXITPROCESS(ctx, status)                            \
-    do {                                                            \
-        SYSCALL_PREPARE(ctx, ntterminateprocess);                 \
-        NtTerminateProcess_t NtTerminateProcess =  SYSCALL_CALL(ctx, NtTerminateProcess_t);  \
-        NtTerminateProcess((HANDLE)-1, (NTSTATUS)(status));         \
+#define SYSCALL_EXITPROCESS(ctx, status) \
+    do { \
+        SYSCALL_PREPARE(ctx, ntterminateprocess); \
+        NtTerminateProcess_t NtTerminateProcess =  SYSCALL_CALL(ctx, NtTerminateProcess_t); \
+        NtTerminateProcess((HANDLE)-1, (NTSTATUS)(status)); \
     } while (0)
 
 /* ================= Implementation ================= */
@@ -146,42 +146,49 @@ NTDLL_DISK_CTX MapNtdllFromDisk(void) {
 
     NTSTATUS (NTAPI *NtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
     NTSTATUS (NTAPI *NtCreateSection)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PLARGE_INTEGER, ULONG, ULONG, HANDLE);
-    NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID*, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG);
+    NTSTATUS (NTAPI *NtMapViewOfSection)(HANDLE, HANDLE, PVOID *, ULONG_PTR, SIZE_T, PLARGE_INTEGER, PSIZE_T, DWORD, ULONG, ULONG);
     NTSTATUS (NTAPI *NtClose)(HANDLE);
 
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
-    NtCreateFile       = (void*)myGetProcAddress(ntdll, ntcreatefile);
-    NtCreateSection    = (void*)myGetProcAddress(ntdll, ntcreatesection);
-    NtMapViewOfSection = (void*)myGetProcAddress(ntdll, ntmapviewofsection);
-    NtClose            = (void*)myGetProcAddress(ntdll, ntclose);
 
-    UNICODE_STRING us; InitUnicodeString(&us, ntdll_path);
-    OBJECT_ATTRIBUTES oa; InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
+    UNICODE_STRING us;
+    InitUnicodeString(&us, ntdll_path);
 
-    HANDLE hFile; IO_STATUS_BLOCK iosb;
+    OBJECT_ATTRIBUTES oa;
+    InitializeObjectAttributes(&oa, &us, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    HANDLE hFile;
+    IO_STATUS_BLOCK iosb;
+    NtCreateFile = (void *)myGetProcAddress(ntdll, ntcreatefile);
     NtCreateFile(&hFile, FILE_GENERIC_READ, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     HANDLE hSection;
+    NtCreateSection = (void *)myGetProcAddress(ntdll, ntcreatesection);
     NtCreateSection(&hSection, SECTION_MAP_READ, NULL, NULL, PAGE_READONLY, SEC_IMAGE, hFile);
 
-    PVOID base = NULL; SIZE_T size = 0;
+    PVOID base = NULL;
+    SIZE_T size = 0;
+    NtMapViewOfSection = (void *)myGetProcAddress(ntdll, ntmapviewofsection);
     NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0, NULL, &size, ViewShare, 0, PAGE_READONLY);
 
-    NtClose(hSection); NtClose(hFile);
+    NtClose = (void *)myGetProcAddress(ntdll, ntclose);
+    NtClose(hSection);
+    NtClose(hFile);
 
-    IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER*)base;
-    IMAGE_NT_HEADERS *nt  = (IMAGE_NT_HEADERS*)((BYTE*)base + dos->e_lfanew);
+    IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER *)base;
+    IMAGE_NT_HEADERS *nt  = (IMAGE_NT_HEADERS *)((BYTE *)base + dos->e_lfanew);
 
     SIZE_T min_size = nt->OptionalHeader.SizeOfHeaders;
     for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
-        IMAGE_SECTION_HEADER *sect = (IMAGE_SECTION_HEADER*)((BYTE*)nt + sizeof(IMAGE_NT_HEADERS) + i * sizeof(IMAGE_SECTION_HEADER));
-        if ((sect->Characteristics & IMAGE_SCN_CNT_CODE) || sect->VirtualAddress <= nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress) {
+        IMAGE_SECTION_HEADER *sect = (IMAGE_SECTION_HEADER *)((BYTE *)nt + sizeof(IMAGE_NT_HEADERS) + i * sizeof(IMAGE_SECTION_HEADER));
+        if (sect->Characteristics & IMAGE_SCN_CNT_CODE || sect->VirtualAddress <= nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress) {
             SIZE_T end = sect->VirtualAddress + sect->Misc.VirtualSize;
             if (end > min_size) min_size = end;
         }
     }
 
-    ctx.base = base; ctx.size = min_size;
+    ctx.base = base;
+    ctx.size = min_size;
     return ctx;
 }
 
@@ -189,12 +196,13 @@ NTDLL_DISK_CTX MapNtdllFromDisk(void) {
 DWORD ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name) {
     BYTE *f = GetExport(ctx, name);
 
-    if (f[0]==0x4C && f[1]==0x8B && f[2]==0xD1 && f[3]==0xB8)
-        return *(DWORD*)(f + 4);
+    if (f[0]==0x4C && f[1]==0x8B &&
+        f[2]==0xD1 && f[3]==0xB8)
+        return *(DWORD *)(f + 4); // mov r10, rcx ; mov eax, imm32
 
     for (int i = 0; i < 32; i++)
         if (f[i]==0xB8 && f[i+5]==0x0F && f[i+6]==0x05)
-            return *(DWORD*)(f + i + 1);
+            return *(DWORD*)(f + i + 1); // mov eax, imm32 ; syscall
 
     return 0xFFFFFFFF;
 }
