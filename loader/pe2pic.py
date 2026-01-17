@@ -44,7 +44,7 @@ def chaskey_ctr_keystream(key, nonce, length):
 
 # --- CLI and I/O ---
 if len(sys.argv) < 3:
-    print(f"Usage: {os.path.basename(sys.argv[0])} <input_pe> <shellcode.bin> [-exe|-dll] [-encrypt] [-wipeheaders] [-base64]")
+    print(f"Usage: {os.path.basename(sys.argv[0])} <input_pe> <shellcode.bin> [-exe|-dll] [-wipeheaders] [-encrypt] [-base64]")
     sys.exit(1)
 
 args = [a.lower() for a in sys.argv]
@@ -55,9 +55,6 @@ wipe_headers = "-wipeheaders" in args
 use_exe = "-exe" in args
 use_dll = "-dll" in args
 use_b64 = "-base64" in args or "-b64" in args
-
-if wipe_headers and not use_encrypt:
-    sys.exit("[-] Must use -wipeheaders with -encrypt")
 
 with open(input_pe, "rb") as f:
     pe_bytes = f.read()
@@ -221,13 +218,15 @@ compile_cmd = [
     "-o", output_file
 ]
 
-if use_encrypt:
-    compile_cmd.extend(["-DWIPEIMAGE"])
+
 if wipe_headers:
-    compile_cmd.extend(["-DWIPEHEADERS"])
+    compile_cmd.extend(["-DWIPEIMAGE", "-DWIPEHEADERS"])
+elif use_encrypt:
+    compile_cmd.extend(["-DWIPEIMAGE"])
+
 if use_dll:
     compile_cmd.extend(["-shared", "-Wl,--exclude-all-symbols"])
-if not use_exe and not use_dll:
+elif not use_exe and not use_dll:
     compile_cmd.extend(["-T", "linker.ld"])
 
 try:
