@@ -44,22 +44,26 @@ def chaskey_ctr_keystream(key, nonce, length):
 
 # --- CLI and I/O ---
 if len(sys.argv) < 3:
-    print(f"Usage: {os.path.basename(sys.argv[0])} <input_pe> <shellcode.bin> [-exe|-dll] [-encrypt] [-base64]")
+    print(f"Usage: {os.path.basename(sys.argv[0])} <input_pe> <shellcode.bin> [-exe|-dll] [-encrypt] [-wipeheaders] [-base64]")
     sys.exit(1)
 
 args = [a.lower() for a in sys.argv]
 input_pe = sys.argv[1]
 output_bin = sys.argv[2]
 use_encrypt = "-encrypt" in args
+wipe_headers = "-wipeheaders" in args
 use_exe = "-exe" in args
 use_dll = "-dll" in args
 use_b64 = "-base64" in args or "-b64" in args
+
+if wipe_headers and not use_encrypt:
+    sys.exit("[-] Must use -wipeheaders with -encrypt")
 
 with open(input_pe, "rb") as f:
     pe_bytes = f.read()
 
 if len(pe_bytes) < 2 or pe_bytes[:2] != b"MZ":
-    print("[-] Input is not a valid PE (missing MZ header)")
+    print("[-] Input is not a valid PE")
     sys.exit(1)
 
 if use_encrypt:
@@ -219,6 +223,8 @@ compile_cmd = [
 
 if use_encrypt:
     compile_cmd.extend(["-DFREEMEM"])
+if wipe_headers:
+    compile_cmd.extend(["-DWIPEHEADERS"])
 if use_dll:
     compile_cmd.extend(["-shared", "-Wl,--exclude-all-symbols"])
 if not use_exe and not use_dll:
