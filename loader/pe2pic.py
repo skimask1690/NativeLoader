@@ -219,9 +219,9 @@ compile_cmd = [
 ]
 
 if wipe_headers:
-    compile_cmd.extend(["-DWIPEIMAGE", "-DWIPEHEADERS"])
+    compile_cmd.extend(["-DWIPEMEM", "-DWIPEHEADERS"])
 elif use_encrypt:
-    compile_cmd.extend(["-DWIPEIMAGE"])
+    compile_cmd.extend(["-DWIPEMEM"])
 
 if use_dll:
     compile_cmd.extend(["-shared", "-Wl,--exclude-all-symbols"])
