@@ -56,10 +56,10 @@ DWORD           ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name);
 void *          ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name);
 
 /* ================= Macros ================= */
-#define SYSCALL_INIT(ctx)                           \
+#define SYSCALL_INIT(ctx) \
     SYSCALL_CTX *ctx = CreateSyscallContext(); \
-    NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk();   \
-    DWORD ssn = 0;                                  \
+    NTDLL_DISK_CTX ntdll_ctx = MapNtdllFromDisk(); \
+    DWORD ssn = 0; \
     void *sysaddr = NULL
 
 #define SYSCALL_PREPARE(ctx, name) \
@@ -89,18 +89,18 @@ void *          ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name);
 		DestroySyscallContext(ctx);                 \
     } while(0)
 
-#define SYSCALL_EXITTHREAD(ctx, status)                            \
-    do {                                                            \
-        SYSCALL_PREPARE(ctx, ntterminatethread);                    \
+#define SYSCALL_EXITTHREAD(ctx, status) \
+    do { \
+        SYSCALL_PREPARE(ctx, ntterminatethread); \
         NtTerminateThread_t NtTerminateThread = SYSCALL_CALL(ctx, NtTerminateThread_t); \
-        NtTerminateThread((HANDLE)-2, (NTSTATUS)(status));          \
+        NtTerminateThread((HANDLE)-2, (NTSTATUS)(status)); \
     } while (0)
 
-#define SYSCALL_EXITPROCESS(ctx, status)                            \
-    do {                                                            \
-        SYSCALL_PREPARE(ctx, ntterminateprocess);                 \
-        NtTerminateProcess_t NtTerminateProcess =  SYSCALL_CALL(ctx, NtTerminateProcess_t);  \
-        NtTerminateProcess((HANDLE)-1, (NTSTATUS)(status));         \
+#define SYSCALL_EXITPROCESS(ctx, status) \
+    do { \
+        SYSCALL_PREPARE(ctx, ntterminateprocess); \
+        NtTerminateProcess_t NtTerminateProcess =  SYSCALL_CALL(ctx, NtTerminateProcess_t); \
+        NtTerminateProcess((HANDLE)-1, (NTSTATUS)(status)); \
     } while (0)
 
 /* ================= Implementation ================= */
@@ -154,10 +154,6 @@ NTDLL_DISK_CTX MapNtdllFromDisk(void) {
     NTSTATUS (NTAPI *NtClose)(HANDLE);
 
     HMODULE ntdll = myGetModuleHandleA(ntdll_dll);
-    NtCreateFile = (void *)myGetProcAddress(ntdll, ntcreatefile);
-    NtCreateSection = (void *)myGetProcAddress(ntdll, ntcreatesection);
-    NtMapViewOfSection = (void *)myGetProcAddress(ntdll, ntmapviewofsection);
-    NtClose = (void *)myGetProcAddress(ntdll, ntclose);
 
     UNICODE_STRING us;
     InitUnicodeString(&us, ntdll_path);
@@ -167,15 +163,19 @@ NTDLL_DISK_CTX MapNtdllFromDisk(void) {
 
     HANDLE hFile;
     IO_STATUS_BLOCK iosb;
+    NtCreateFile = (void *)myGetProcAddress(ntdll, ntcreatefile);
     NtCreateFile(&hFile, FILE_GENERIC_READ, &oa, &iosb, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_NON_DIRECTORY_FILE, NULL, 0);
 
     HANDLE hSection;
+    NtCreateSection = (void *)myGetProcAddress(ntdll, ntcreatesection);
     NtCreateSection(&hSection, SECTION_MAP_READ, NULL, NULL, PAGE_READONLY, SEC_IMAGE, hFile);
 
     PVOID base = NULL;
     SIZE_T size = 0;
+    NtMapViewOfSection = (void *)myGetProcAddress(ntdll, ntmapviewofsection);
     NtMapViewOfSection(hSection, (HANDLE)-1, &base, 0, 0, NULL, &size, ViewShare, 0, PAGE_READONLY);
 
+    NtClose = (void *)myGetProcAddress(ntdll, ntclose);
     NtClose(hSection);
     NtClose(hFile);
 
@@ -202,11 +202,11 @@ DWORD ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name) {
 
     if (f[0]==0x4C && f[1]==0x8B &&
         f[2]==0xD1 && f[3]==0xB8)
-        return *(DWORD *)(f + 4);
+        return *(DWORD *)(f + 4); // mov r10, rcx ; mov eax, imm32
 
     for (int i = 0; i < 32; i++)
         if (f[i]==0xB8 && f[i+5]==0x0F && f[i+6]==0x05)
-            return *(DWORD *)(f + i + 1);
+            return *(DWORD *)(f + i + 1); // // mov eax, imm32 ; syscall
 
     return 0xFFFFFFFF;
 }
@@ -216,7 +216,7 @@ void *ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name) {
 
     for (int i = 0; i < 32; i++)
         if (f[i]==0x0F && f[i+1]==0x05)
-            return f + i;
+            return f + i; // syscall
 
     return NULL;
 }
