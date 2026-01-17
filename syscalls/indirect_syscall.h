@@ -202,11 +202,11 @@ DWORD ResolveSSN(NTDLL_DISK_CTX *ctx, const char *name) {
 
     if (f[0]==0x4C && f[1]==0x8B &&
         f[2]==0xD1 && f[3]==0xB8)
-        return *(DWORD *)(f + 4); // mov r10, rcx ; mov eax, imm32
+        return *(DWORD *)(f + 4);  // mov r10, rcx ; mov eax, imm32
 
     for (int i = 0; i < 32; i++)
         if (f[i]==0xB8 && f[i+5]==0x0F && f[i+6]==0x05)
-            return *(DWORD *)(f + i + 1); // // mov eax, imm32 ; syscall
+            return *(DWORD *)(f + i + 1);  // // mov eax, imm32 ; syscall
 
     return 0xFFFFFFFF;
 }
@@ -216,7 +216,7 @@ void *ResolveSyscall(NTDLL_DISK_CTX *ctx, const char *name) {
 
     for (int i = 0; i < 32; i++)
         if (f[i]==0x0F && f[i+1]==0x05)
-            return f + i; // syscall
+            return f + i;  // syscall
 
     return NULL;
 }
