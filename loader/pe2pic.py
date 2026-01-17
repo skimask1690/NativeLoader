@@ -218,7 +218,6 @@ compile_cmd = [
     "-o", output_file
 ]
 
-
 if wipe_headers:
     compile_cmd.extend(["-DWIPEIMAGE", "-DWIPEHEADERS"])
 elif use_encrypt:
