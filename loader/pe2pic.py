@@ -222,7 +222,7 @@ compile_cmd = [
 ]
 
 if use_encrypt:
-    compile_cmd.extend(["-DFREEMEM"])
+    compile_cmd.extend(["-DWIPEIMAGE"])
 if wipe_headers:
     compile_cmd.extend(["-DWIPEHEADERS"])
 if use_dll:
