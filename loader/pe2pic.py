@@ -50,8 +50,8 @@ if len(sys.argv) < 3:
 args = [a.lower() for a in sys.argv]
 input_pe = sys.argv[1]
 output_bin = sys.argv[2]
-use_encrypt = "-encrypt" in args
-wipe_headers = "-wipeheaders" in args
+use_encrypt = "-encrypt" in args or "-enc" in args
+wipe_headers = "-wipeheaders" in args or "-headers" in args
 use_exe = "-exe" in args
 use_dll = "-dll" in args
 use_b64 = "-base64" in args or "-b64" in args
