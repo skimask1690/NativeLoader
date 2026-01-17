@@ -44,7 +44,7 @@ def chaskey_ctr_keystream(key, nonce, length):
 
 # --- CLI and I/O ---
 if len(sys.argv) < 3:
-    print(f"Usage: {os.path.basename(sys.argv[0])} <input_pe> <shellcode.bin> [-exe|-dll] [-wipeheaders] [-encrypt] [-base64]")
+    print(f"Usage: {os.path.basename(sys.argv[0])} <input_pe> <output.bin> [-exe|-dll] [-wipeheaders] [-encrypt] [-base64]")
     sys.exit(1)
 
 args = [a.lower() for a in sys.argv]
