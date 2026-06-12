@@ -1,0 +1,150 @@
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <stdio.h>
+
+// Type for DLL entry point
+typedef BOOL(WINAPI *DllEntryProc)(HINSTANCE, DWORD, LPVOID);
+
+// Determine memory protection based on section characteristics
+DWORD GetProtection(DWORD characteristics) {
+    if (characteristics & IMAGE_SCN_MEM_EXECUTE)
+        return (characteristics & IMAGE_SCN_MEM_WRITE) ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_READ;
+    if (characteristics & IMAGE_SCN_MEM_READ)
+        return (characteristics & IMAGE_SCN_MEM_WRITE) ? PAGE_READWRITE : PAGE_READONLY;
+    return PAGE_NOACCESS;
+}
+
+// Reflectively load a DLL from memory
+HMODULE ReflectiveLoadDLL(BYTE* dllBuffer) {
+    // Parse headers
+    IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)dllBuffer;
+    IMAGE_NT_HEADERS64* ntHeaders = (IMAGE_NT_HEADERS64*)(dllBuffer + dosHeader->e_lfanew);
+    IMAGE_SECTION_HEADER* sec = IMAGE_FIRST_SECTION(ntHeaders);
+
+    // Allocate memory for DLL image
+    BYTE* imageBase = (BYTE*)VirtualAlloc(
+        (LPVOID)ntHeaders->OptionalHeader.ImageBase,
+        ntHeaders->OptionalHeader.SizeOfImage,
+        MEM_RESERVE | MEM_COMMIT,
+        PAGE_READWRITE
+    );
+    if (!imageBase)
+        imageBase = (BYTE*)VirtualAlloc(NULL, ntHeaders->OptionalHeader.SizeOfImage, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    if (!imageBase) return NULL;
+
+    // Copy headers + sections
+    SIZE_T maxEnd = ntHeaders->OptionalHeader.SizeOfHeaders;
+    for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+        SIZE_T sectionEnd = sec[i].VirtualAddress + sec[i].SizeOfRawData;
+        if (sectionEnd > maxEnd) maxEnd = sectionEnd;
+    }
+
+    for (SIZE_T i = 0; i < maxEnd; i++) {
+        if (i < ntHeaders->OptionalHeader.SizeOfHeaders)
+            imageBase[i] = dllBuffer[i];
+        else {
+            for (WORD j = 0; j < ntHeaders->FileHeader.NumberOfSections; j++) {
+                if (i >= sec[j].VirtualAddress && i < sec[j].VirtualAddress + sec[j].SizeOfRawData)
+                    imageBase[i] = dllBuffer[sec[j].PointerToRawData + (i - sec[j].VirtualAddress)];
+            }
+        }
+    }
+
+    // Resolve imports
+    IMAGE_DATA_DIRECTORY importsDir = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+    if (importsDir.Size) {
+        IMAGE_IMPORT_DESCRIPTOR* importDesc = (IMAGE_IMPORT_DESCRIPTOR*)(imageBase + importsDir.VirtualAddress);
+        while (importDesc->Name) {
+            HMODULE hDep = LoadLibraryA((char*)(imageBase + importDesc->Name));
+            IMAGE_THUNK_DATA64* thunk = (IMAGE_THUNK_DATA64*)(imageBase + importDesc->FirstThunk);
+            while (thunk->u1.Function) {
+                if (thunk->u1.Ordinal & IMAGE_ORDINAL_FLAG64)
+                    thunk->u1.Function = (SIZE_T)GetProcAddress(hDep, (LPCSTR)(thunk->u1.Ordinal & 0xFFFF));
+                else
+                    thunk->u1.Function = (SIZE_T)GetProcAddress(hDep, ((IMAGE_IMPORT_BY_NAME*)(imageBase + thunk->u1.AddressOfData))->Name);
+                thunk++;
+            }
+            importDesc++;
+        }
+    }
+
+    // Protect headers + first section
+    BYTE* regionStart = imageBase;
+    SIZE_T regionSize = sec[0].VirtualAddress + sec[0].Misc.VirtualSize;
+    DWORD currentProtect = GetProtection(sec[0].Characteristics);
+    DWORD oldProtect;
+
+    // Protect remaining sections
+    for (WORD i = 1; i < ntHeaders->FileHeader.NumberOfSections; i++, sec++) {
+        DWORD secProtect = GetProtection(sec[i].Characteristics);
+        BYTE* secStart = imageBase + sec[i].VirtualAddress;
+        SIZE_T secSize = sec[i].Misc.VirtualSize;
+
+        if (secProtect == currentProtect && regionStart + regionSize == secStart)
+            regionSize += secSize;
+        else {
+            VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
+            regionStart = secStart;
+            regionSize = secSize;
+            currentProtect = secProtect;
+        }
+    }
+
+    // Final region
+    if (regionSize)
+        VirtualProtect(regionStart, regionSize, currentProtect, &oldProtect);
+
+    // Free discardable sections
+    sec = IMAGE_FIRST_SECTION(ntHeaders);
+    for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++, sec++) {
+        if (sec[i].Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
+            BYTE* discardBase = imageBase + sec[i].VirtualAddress;
+            SIZE_T discardSize = sec[i].Misc.VirtualSize;
+            VirtualFree(discardBase, discardSize, MEM_DECOMMIT);
+        }
+    }
+
+    // Call DLL entry point
+    DllEntryProc DllMain = (DllEntryProc)(imageBase + ntHeaders->OptionalHeader.AddressOfEntryPoint);
+    if (!DllMain((HINSTANCE)imageBase, DLL_PROCESS_ATTACH, NULL)) {
+        VirtualFree(imageBase, 0, MEM_RELEASE);
+        return NULL;
+    }
+
+    return (HMODULE)imageBase;
+}
+
+// Read DLL file into memory
+BYTE* ReadDLL(const char* path, SIZE_T* outSize) {
+    FILE* f = fopen(path, "rb");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    SIZE_T size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    BYTE* buffer = (BYTE*)malloc(size);
+    fread(buffer, size, 1, f);
+    fclose(f);
+    *outSize = size;
+    return buffer;
+}
+
+// Main entry
+int main(int argc, char** argv) {
+    if (argc < 2) {
+        printf("[*] Usage: %s <input.dll>\n", argv[0]);
+        return 1;
+    }
+
+    SIZE_T dllSize;
+    BYTE* dllBuffer = ReadDLL(argv[1], &dllSize);
+    if (!dllBuffer) {
+        printf("[-] Failed to read DLL '%s'\n", argv[1]);
+        return 1;
+    }
+
+    if (!ReflectiveLoadDLL(dllBuffer))
+        printf("[-] Failed to load DLL '%s'\n", argv[1]);
+
+    free(dllBuffer);
+    return 0;
+}

@@ -1,0 +1,30 @@
+#if __has_include("../winapi_loader.h")
+#include "../winapi_loader.h"
+#else
+#include "winapi_loader.h"
+#endif
+
+// -------------------- Function pointer types --------------------
+typedef int (WINAPI *MessageBoxA_t)(HWND, LPCSTR, LPCSTR, UINT);
+typedef VOID (WINAPI *ExitProcess_t)(UINT uExitCode);
+
+// -------------------- Strings --------------------
+STRINGW(user32_dll, "user32.dll")
+STRINGA(kernel32_dll, "kernel32.dll")
+STRINGA(messageboxa, "MessageBoxA")
+STRINGA(hello_msg, "Hello from shellcode!")
+STRINGA(title_msg, "C Shellcode Demo")
+STRINGA(exitprocess, "ExitProcess")
+
+// -------------------- Entry point --------------------
+__attribute__((section(".text.start")))
+int _start(void) {
+    HMODULE hUser32 = myLoadLibraryW(user32_dll);
+    HMODULE hKernel32 = myGetModuleHandleA(kernel32_dll);
+
+    MessageBoxA_t MessageBoxA = (MessageBoxA_t)myGetProcAddress(hUser32, messageboxa);
+    ExitProcess_t ExitProcess = (ExitProcess_t)myGetProcAddress(hKernel32, exitprocess);
+	
+    MessageBoxA(NULL, hello_msg, title_msg, MB_OK | MB_ICONINFORMATION);
+    ExitProcess(0);
+}
