@@ -15,7 +15,6 @@ typedef struct _PROCESS_SESSION_INFORMATION {
 HANDLE CreateSessionMutex(HMODULE hNtdll) {
     NtQueryInformationProcess_t NtQueryInformationProcess = (NtQueryInformationProcess_t)myGetProcAddressH(hNtdll, ntqueryinformationprocess);
     NtCreateMutant_t NtCreateMutant = (NtCreateMutant_t)myGetProcAddressH(hNtdll, ntcreatemutant);
-
     NtTerminateProcess_t NtTerminateProcess = (NtTerminateProcess_t)myGetProcAddressH(hNtdll, ntterminateprocess);
 
     PROCESS_SESSION_INFORMATION psi;
