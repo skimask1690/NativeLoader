@@ -21,41 +21,28 @@ int _start(void) {
     NtQueryInformationProcess_t NtQueryInformationProcess = (NtQueryInformationProcess_t)myGetProcAddressH(hNtdll, ntqueryinformationprocess);
 
     PROCESS_SESSION_INFORMATION psi;
-
     NtQueryInformationProcess((HANDLE)-1, ProcessSessionInformation, &psi, sizeof(psi), NULL);
 
-    ULONG sid = psi.SessionId;
+    int prefix_len = 0; while (prefix[prefix_len]) prefix_len++;
+    int mutex_len = 0; while (mutex[mutex_len]) mutex_len++;
 
-    int prefix_len = 0;
-    while (prefix[prefix_len]) prefix_len++;
+    int sid_len = 0;
+    ULONG temp_v = psi.SessionId;
+    if (temp_v == 0) sid_len = 1;
+    else { while (temp_v > 0) { temp_v /= 10; sid_len++; } }
 
-    int mutex_len = 0;
-    while (mutex[mutex_len]) mutex_len++;
-
-    ULONG v = sid;
-
-    wchar_t tmp[10]; // max digits for ULONG
-    int t = 0;
-
-    do {
-        tmp[t++] = L'0' + (v % 10);
-        v /= 10;
-    } while (v);
-
-    int total_len = prefix_len + t + mutex_len + 1;
-
-    wchar_t path[total_len];
+    wchar_t path[prefix_len + sid_len + mutex_len + 1];
     wchar_t *p = path;
 
-    for (int i = 0; i < prefix_len; i++)
-        *p++ = prefix[i];
+    for (int i = 0; i < prefix_len; i++) *p++ = prefix[i];
 
-    for (int i = t - 1; i >= 0; i--)
-        *p++ = tmp[i];
+    p += sid_len;
+    wchar_t *digit_ptr = p;
+    ULONG v = psi.SessionId;
+    if (v == 0) *(--digit_ptr) = L'0';
+    else { while (v > 0) { *(--digit_ptr) = L'0' + (v % 10); v /= 10; } }
 
-    for (int i = 0; i < mutex_len; i++)
-        *p++ = mutex[i];
-
+    for (int i = 0; i < mutex_len; i++) *p++ = mutex[i];
     *p = L'\0';
 
     UNICODE_STRING name;
@@ -67,8 +54,7 @@ int _start(void) {
     InitializeObjectAttributes(&oa, &name, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
     HANDLE hMutex;
-
-    NTSTATUS status = NtCreateMutant(&hMutex, MUTANT_ALL_ACCESS, &oa, FALSE);
+    NTSTATUS status = NtCreateMutant(&hMutex, 0, &oa, FALSE);
 
     if (!NT_SUCCESS(status))
         myExitProcess(0);
