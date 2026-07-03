@@ -12,12 +12,10 @@ typedef struct _PROCESS_SESSION_INFORMATION {
     ULONG SessionId;
 } PROCESS_SESSION_INFORMATION;
 
-__attribute__((section(".text.start")))
-int _start(void) {
-    HMODULE hNtdll = myGetModuleHandleH(ntdll_dll);
-    NtCreateMutant_t NtCreateMutant = (NtCreateMutant_t)myGetProcAddressH(hNtdll, ntcreatemutant);
-    NtClose_t NtClose = (NtClose_t)myGetProcAddressH(hNtdll, ntclose);
+HANDLE CreateSessionMutex(HMODULE hNtdll) {
     NtQueryInformationProcess_t NtQueryInformationProcess = (NtQueryInformationProcess_t)myGetProcAddressH(hNtdll, ntqueryinformationprocess);
+    NtCreateMutant_t NtCreateMutant = (NtCreateMutant_t)myGetProcAddressH(hNtdll, ntcreatemutant);
+
     NtTerminateProcess_t NtTerminateProcess = (NtTerminateProcess_t)myGetProcAddressH(hNtdll, ntterminateprocess);
 
     PROCESS_SESSION_INFORMATION psi;
@@ -41,10 +39,10 @@ int _start(void) {
 
     for (int i = 0; i < prefix_len; i++) *p++ = prefix[i];
 
-    p += sid_len;
-    wchar_t *digit_ptr = p;
+    wchar_t *digit_ptr = p + sid_len;
     ULONG v = psi.SessionId;
     do { *(--digit_ptr) = L'0' + (v % 10); v /= 10; } while (v > 0);
+    p += sid_len;
 
     for (int i = 0; i < mutex_len; i++) *p++ = mutex[i];
     *p = L'\0';
@@ -57,11 +55,21 @@ int _start(void) {
     OBJECT_ATTRIBUTES oa;
     InitializeObjectAttributes(&oa, &name, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
-    HANDLE hMutex;
+    HANDLE hMutex = NULL;
     NTSTATUS status = NtCreateMutant(&hMutex, 0, &oa, FALSE);
 
     if (!NT_SUCCESS(status))
         NtTerminateProcess((HANDLE)-1, 0);
+
+    return hMutex;
+}
+
+__attribute__((section(".text.start")))
+int _start(void) {
+    HMODULE hNtdll = myGetModuleHandleH(ntdll_dll);
+    NtClose_t NtClose = (NtClose_t)myGetProcAddressH(hNtdll, ntclose);
+
+    HANDLE hMutex = CreateSessionMutex(hNtdll);
 
     STRINGA(hello_str, "Hello from single instance!\n");
     STDOUT_WRITE(hello_str);
