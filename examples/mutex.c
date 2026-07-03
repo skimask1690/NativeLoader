@@ -48,9 +48,7 @@ HANDLE CreateSessionMutex(HMODULE hNtdll) {
     *p = L'\0';
 
     UNICODE_STRING name;
-    name.Buffer = path;
-    name.Length = (USHORT)((p - path) * sizeof(wchar_t));
-    name.MaximumLength = sizeof(path);
+    InitUnicodeString(&name, path);
 
     OBJECT_ATTRIBUTES oa;
     InitializeObjectAttributes(&oa, &name, OBJ_CASE_INSENSITIVE, NULL, NULL);
