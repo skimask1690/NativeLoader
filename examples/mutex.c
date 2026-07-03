@@ -19,17 +19,20 @@ int _start(void) {
     NtCreateMutant_t NtCreateMutant = (NtCreateMutant_t)myGetProcAddressH(hNtdll, ntcreatemutant);
     NtClose_t NtClose = (NtClose_t)myGetProcAddressH(hNtdll, ntclose);
     NtQueryInformationProcess_t NtQueryInformationProcess = (NtQueryInformationProcess_t)myGetProcAddressH(hNtdll, ntqueryinformationprocess);
+    NtTerminateProcess_t NtTerminateProcess = (NtTerminateProcess_t)myGetProcAddressH(hNtdll, ntterminateprocess);
 
     PROCESS_SESSION_INFORMATION psi;
     NtQueryInformationProcess((HANDLE)-1, ProcessSessionInformation, &psi, sizeof(psi), NULL);
 
-    int prefix_len = 0; while (prefix[prefix_len]) prefix_len++;
-    int mutex_len = 0; while (mutex[mutex_len]) mutex_len++;
+    int prefix_len = 0;
+    while (prefix[prefix_len]) prefix_len++;
+
+    int mutex_len = 0;
+    while (mutex[mutex_len]) mutex_len++;
 
     int sid_len = 0;
-    ULONG temp_v = psi.SessionId;
-    if (temp_v == 0) sid_len = 1;
-    else { while (temp_v > 0) { temp_v /= 10; sid_len++; } }
+    ULONG temp = psi.SessionId;
+    do { temp /= 10; sid_len++; } while (temp > 0);
 
     wchar_t path[prefix_len + sid_len + mutex_len + 1];
     wchar_t *p = path;
@@ -39,8 +42,7 @@ int _start(void) {
     p += sid_len;
     wchar_t *digit_ptr = p;
     ULONG v = psi.SessionId;
-    if (v == 0) *(--digit_ptr) = L'0';
-    else { while (v > 0) { *(--digit_ptr) = L'0' + (v % 10); v /= 10; } }
+    do { *(--digit_ptr) = L'0' + (v % 10); v /= 10; } while (v > 0);
 
     for (int i = 0; i < mutex_len; i++) *p++ = mutex[i];
     *p = L'\0';
@@ -57,7 +59,7 @@ int _start(void) {
     NTSTATUS status = NtCreateMutant(&hMutex, 0, &oa, FALSE);
 
     if (!NT_SUCCESS(status))
-        myExitProcess(0);
+        NtTerminateProcess((HANDLE)-1, 0);
 
     STRINGA(hello_str, "Hello from single instance!\n");
     STDOUT_WRITE(hello_str);
