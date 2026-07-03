@@ -6,8 +6,7 @@ typedef NTSTATUS (NTAPI *NtClose_t)(HANDLE);
 #define ntcreatemutant HASH("NtCreateMutant")
 #define ntclose HASH("NtClose")
 
-STRINGW(prefix, "\\Sessions\\")
-STRINGW(mutex, "\\BaseNamedObjects\\MyUniqueProgramMutex")
+#define MUTEX_NAME L"MyUniqueProgramMutex"
 
 typedef struct _PROCESS_SESSION_INFORMATION {
     ULONG SessionId;
@@ -23,6 +22,9 @@ int _start(void) {
 
     PROCESS_SESSION_INFORMATION psi;
     NtQueryInformationProcess((HANDLE)-1, ProcessSessionInformation, &psi, sizeof(psi), NULL);
+
+    STRINGW(prefix, "\\Sessions\\");
+    STRINGW(mutex, "\\BaseNamedObjects\\" MUTEX_NAME);
 
     int prefix_len = 0;
     while (prefix[prefix_len]) prefix_len++;
